@@ -2,16 +2,18 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <cstring>
 #include "pasclike.tab.h"
 #include "loglib.h"
 
-#define YY_DECL extern "C" int yylex()
+#define YY_DECL extern "C" int yylex(void)
 extern "C" char * lexemeDup();
+YYSTYPE yylval;
 
 using std::cout;
 using std::endl;
 
-TLogLevel logLvl = logINFO;
+TLogLevel logLvl = logDEBUG1;
 
 int currentLineNumber = 1;
 int commentCaller;
@@ -40,13 +42,13 @@ RELOP         >=?|<[>=]?|=
 
   /************* Numbers **********************/
 
-{INTEGER}      { LOG(logLvl) << "INTEGER    " << yytext;  return NUMBER; }
-{DECIMAL}      { LOG(logLvl) << "DECIMAL    " << yytext;  return NUMBER; }
-{EXPONENTIAL}  { LOG(logLvl) << "EXPNUMBER  " << yytext;  return NUMBER; }
+{INTEGER}      { LOG(logLvl) << "INTEGER    " << yytext;  yylval.lexeme = lexemeDup();  return INTEGER;   }
+{DECIMAL}      { LOG(logLvl) << "DECIMAL    " << yytext;  yylval.lexeme = lexemeDup();  return DECIMAL;   }
+{EXPONENTIAL}  { LOG(logLvl) << "EXPNUMBER  " << yytext;  yylval.lexeme = lexemeDup();  return EXPNUMBER; }
 
   /************* Relational Operators *********/
 
-{RELOP}        { LOG(logLvl) << "RELOP      " << yytext;  return RELOP;  }
+{RELOP}        { LOG(logLvl) << "RELOP      " << yytext;  yylval.lexeme = lexemeDup();  return RELOP;  }
 
   /************* Reserved Keywords ************/
 
@@ -94,8 +96,10 @@ while          { LOG(logLvl) << "KEYWORD while";        return WHILE;       }
   /************* Strings and ID's *************/
 
 \"[^"\n\r]*\"                  { LOG(logLvl) << "STRING     " << yytext;
+                                 yylval.lexeme = lexemeDup();  
                                  return STRING;                             }
-{LETTER}({LETTER}|{DIGIT}|_)*  { LOG(logLvl) << "IDENTIFIER " << yytext;  
+{LETTER}({LETTER}|{DIGIT}|_)*  { LOG(logLvl) << "IDENTIFIER " << yytext;
+                                 yylval.lexeme = lexemeDup();  
                                  return ID;                                 }
 
   /************* Comments *********************/
@@ -109,7 +113,11 @@ while          { LOG(logLvl) << "KEYWORD while";        return WHILE;       }
 
 .                       { LOG(logLvl) << "ERROR(" << currentLineNumber
                                       << "): Unrecognized Symbol \""
-                                      << yytext << '"';                     }
+                                      << yytext << '"';   
+                          std::stringstream ss;
+                          ss << currentLineNumber;
+                          yylval.lexeme = strdup(ss.str().c_str());
+                          return ERROR_TOKEN;                               }
 
 %%
 
@@ -119,10 +127,3 @@ char *lexemeDup() {
   return str;
 }
 
-main()
-{
-  Output2FILE::Stream() = stdout;
-
-  while( yylex() )
-    ;
-}

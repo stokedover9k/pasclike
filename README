@@ -1,1 +1,26 @@
+Author: Yuriy Skobov
+
 This package contains a lexical analyzer for a Pascal-like language.
+
+NOTE: The code was tested on energon1.
+
+----- Compile -----
+Execute 'make' in this directory.  An executable named "scanner-pasclike"
+which reads from stdandard input and reports to standard output will be
+produced.
+
+----- Run -----
+./scanner-pasclike < test-program-data
+
+----- Implementation Notes -----
+* Logging:
+  pasclike.l contains logging code.  This logging is currently disabled
+  and can be ignored.  To enable, run make with 
+    CFLAGS=-DFILELOG_MAX_LEVEL=logDEBUG4
+  The logging library is a slightly modified library taken from Dr. Dobbs
+  website.
+
+* Output Organization:
+  Currently, the program's output is produced in main.cpp (not the Flex 
+  file pasclike.l) based on the tokens returned by yylex().
+  
