@@ -6,11 +6,11 @@ NOTE: The code was tested on energon1.
 
 ----- Compile -----
 Execute 'make' in this directory.  An executable named "scanner-pasclike"
-which reads from stdandard input and reports to standard output will be
-produced.
+which takes the name of the file containing the input data (the program to parse)
+as its first argument and reports to standard output will be produced.
 
 ----- Run -----
-./scanner-pasclike < test-program-data
+./scanner-pasclike test-program-data
 
 ----- Implementation Notes -----
 * Logging:

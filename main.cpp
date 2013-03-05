@@ -83,7 +83,18 @@ void reportToken( int token )
 
 int main( int argc, char* argv[] )
 {
+  if( argc <= 1 ) {
+    cout << "Error: expected input filename as an argument\n"
+	 << "Usage: scanner-pasclike program_to_parse" << endl;
+    return 1;
+  }
 
+  yyin = fopen( argv[1], "r" );
+  if( yyin == NULL ) {
+    cout << "Error: could not open input file \"" << argv[1] << "\"." << endl;
+    return 1;
+  }
+    
   int token;
   while( token = yylex() )
     reportToken( token );
