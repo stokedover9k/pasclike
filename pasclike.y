@@ -36,7 +36,7 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 %token DIV MOD
 %token FUNCTION ARRAY PROCEDURE PROGRAM RECORD TYPE VAR WHILE
 %token DOT COMMA COLON SEMICOLON ASSIGN RANGE LPAREN RPAREN LBRACKET RBRACKET
-%token PLUS MINUS MULT DIVIDE
+%token PLUS MINUS MULT
 %token LE LT GE GT NE EQ
 
 %token <lexeme> INTEGER DECIMAL EXPNUMBER
@@ -172,7 +172,6 @@ addOp  : PLUS                                                             { LOG(
        ;
 mulOp  : MULT                                                             { LOG(ParserLog) << "++ mulOp := *";    }
        | DIV                                                              { LOG(ParserLog) << "++ mulOp := div";  }
-       | DIVIDE                                                           { LOG(ParserLog) << "++ mulOp := /";    }
        | MOD                                                              { LOG(ParserLog) << "++ mulOp := %";    }
        | AND                                                              { LOG(ParserLog) << "++ mulOp := AND";  }
        ;

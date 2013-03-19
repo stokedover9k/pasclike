@@ -102,7 +102,6 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
 \+             { LOG(ScannerLog) << "PLUS";         return PLUS;        }
 \-             { LOG(ScannerLog) << "MINUS";        return MINUS;       }
 \*             { LOG(ScannerLog) << "MULT";         return MULT;        }
-\/             { LOG(ScannerLog) << "DIVIDE";       return DIVIDE;      }
 
   /************* Strings and ID's *************/
 

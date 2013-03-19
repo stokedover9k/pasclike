@@ -48,7 +48,6 @@ void reportToken( int token )
     case PLUS:       cout << "PLUS"     ;  break;
     case MINUS:      cout << "MINUS"    ;  break;
     case MULT:       cout << "MULT"     ;  break;
-    case DIVIDE:     cout << "DIVIDE"   ;  break;
 
     default:
       cout << "KEYWORD ";
