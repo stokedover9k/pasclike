@@ -7,10 +7,13 @@ NOTE: The code was tested on energon1.
 ----- Compile -----
 Execute 'make' in this directory.  An executable named "scanner-pasclike"
 which takes the name of the file containing the input data (the program to parse)
-as its first argument and reports to standard output will be produced.
+as its first argument and reports to standard output will be produced.  If no
+file name is provided, the scanner reads from standard input.
 
 ----- Run -----
 ./scanner-pasclike test-program-data
+or
+./scanner-pasclike < test-program-data
 
 ----- Implementation Notes -----
 * Logging:

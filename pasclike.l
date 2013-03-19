@@ -4,16 +4,22 @@
 #include <stdlib.h>
 #include <cstring>
 #include "pasclike.tab.h"
+
+//------- logging settings --------
 #include "loglib.h"
+
+#ifndef SCANNER_LOG_LVL
+#define SCANNER_LOG_LVL logDEBUG4
+#endif
+
+TLogLevel ScannerLog = SCANNER_LOG_LVL;
+//---------------------------------
 
 #define YY_DECL extern "C" int yylex(void)
 extern "C" char * lexemeDup();
-YYSTYPE yylval;
 
 using std::cout;
 using std::endl;
-
-TLogLevel logLvl = logDEBUG1;
 
 int currentLineNumber = 1;
 int commentCaller;
@@ -42,63 +48,68 @@ RELOP         >=?|<[>=]?|=
 
   /************* Numbers **********************/
 
-{INTEGER}      { LOG(logLvl) << "INTEGER    " << yytext;  yylval.lexeme = lexemeDup();  return INTEGER;   }
-{DECIMAL}      { LOG(logLvl) << "DECIMAL    " << yytext;  yylval.lexeme = lexemeDup();  return DECIMAL;   }
-{EXPONENTIAL}  { LOG(logLvl) << "EXPNUMBER  " << yytext;  yylval.lexeme = lexemeDup();  return EXPNUMBER; }
+{INTEGER}      { LOG(ScannerLog) << "INTEGER    " << yytext;  yylval.lexeme = lexemeDup();  return INTEGER;   }
+{DECIMAL}      { LOG(ScannerLog) << "DECIMAL    " << yytext;  yylval.lexeme = lexemeDup();  return DECIMAL;   }
+{EXPONENTIAL}  { LOG(ScannerLog) << "EXPNUMBER  " << yytext;  yylval.lexeme = lexemeDup();  return EXPNUMBER; }
 
   /************* Relational Operators *********/
 
-{RELOP}        { LOG(logLvl) << "RELOP      " << yytext;  yylval.lexeme = lexemeDup();  return RELOP;  }
+\<=             { LOG(ScannerLog) << "RELOP      " << yytext;  return LE; }
+\<              { LOG(ScannerLog) << "RELOP      " << yytext;  return LT; }
+\>=             { LOG(ScannerLog) << "RELOP      " << yytext;  return GE; }
+\>              { LOG(ScannerLog) << "RELOP      " << yytext;  return GT; }
+\<\>            { LOG(ScannerLog) << "RELOP      " << yytext;  return NE; }
+=               { LOG(ScannerLog) << "RELOP      " << yytext;  return EQ; }
 
   /************* Reserved Keywords ************/
 
-and            { LOG(logLvl) << "KEYWORD and";          return AND;         }
-begin          { LOG(logLvl) << "KEYWORD begin";        return BEGIN_TOKEN; }
-forward        { LOG(logLvl) << "KEYWORD forward";      return FORWARD;     }
-div            { LOG(logLvl) << "KEYWORD div";          return DIV;         }
-do             { LOG(logLvl) << "KEYWORD do";           return DO;          }
-else           { LOG(logLvl) << "KEYWORD else";         return ELSE;        }
-end            { LOG(logLvl) << "KEYWORD end";          return END_TOKEN;   }
-for            { LOG(logLvl) << "KEYWORD for";          return FOR;         }
-function       { LOG(logLvl) << "KEYWORD function";     return FUNCTION;    }
-if             { LOG(logLvl) << "KEYWORD if";           return IF;          }
-array          { LOG(logLvl) << "KEYWORD array";        return ARRAY;       }
-mod            { LOG(logLvl) << "KEYWORD mod";          return MOD;         }
-not            { LOG(logLvl) << "KEYWORD not";          return NOT;         }
-of             { LOG(logLvl) << "KEYWORD of";           return OF;          }
-or             { LOG(logLvl) << "KEYWORD or";           return OR;          }
-procedure      { LOG(logLvl) << "KEYWORD procedure";    return PROCEDURE;   }
-program        { LOG(logLvl) << "KEYWORD program";      return PROGRAM;     }
-record         { LOG(logLvl) << "KEYWORD record";       return RECORD;      }
-then           { LOG(logLvl) << "KEYWORD then";         return THEN;        }
-to             { LOG(logLvl) << "KEYWORD to";           return TO;          }
-type           { LOG(logLvl) << "KEYWORD type";         return TYPE;        }
-var            { LOG(logLvl) << "KEYWORD var";          return VAR;         }
-while          { LOG(logLvl) << "KEYWORD while";        return WHILE;       }
+and            { LOG(ScannerLog) << "KEYWORD and";          return AND;         }
+begin          { LOG(ScannerLog) << "KEYWORD begin";        return BEGIN_TOKEN; }
+forward        { LOG(ScannerLog) << "KEYWORD forward";      return FORWARD;     }
+div            { LOG(ScannerLog) << "KEYWORD div";          return DIV;         }
+do             { LOG(ScannerLog) << "KEYWORD do";           return DO;          }
+else           { LOG(ScannerLog) << "KEYWORD else";         return ELSE;        }
+end            { LOG(ScannerLog) << "KEYWORD end";          return END_TOKEN;   }
+for            { LOG(ScannerLog) << "KEYWORD for";          return FOR;         }
+function       { LOG(ScannerLog) << "KEYWORD function";     return FUNCTION;    }
+if             { LOG(ScannerLog) << "KEYWORD if";           return IF;          }
+array          { LOG(ScannerLog) << "KEYWORD array";        return ARRAY;       }
+mod            { LOG(ScannerLog) << "KEYWORD mod";          return MOD;         }
+not            { LOG(ScannerLog) << "KEYWORD not";          return NOT;         }
+of             { LOG(ScannerLog) << "KEYWORD of";           return OF;          }
+or             { LOG(ScannerLog) << "KEYWORD or";           return OR;          }
+procedure      { LOG(ScannerLog) << "KEYWORD procedure";    return PROCEDURE;   }
+program        { LOG(ScannerLog) << "KEYWORD program";      return PROGRAM;     }
+record         { LOG(ScannerLog) << "KEYWORD record";       return RECORD;      }
+then           { LOG(ScannerLog) << "KEYWORD then";         return THEN;        }
+to             { LOG(ScannerLog) << "KEYWORD to";           return TO;          }
+type           { LOG(ScannerLog) << "KEYWORD type";         return TYPE;        }
+var            { LOG(ScannerLog) << "KEYWORD var";          return VAR;         }
+while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       }
 
   /************* Reserved Symbols *************/
 
-\.\.           { LOG(logLvl) << "RANGE";        return RANGE;       }
-\.             { LOG(logLvl) << "DOT";          return DOT;         }
-,              { LOG(logLvl) << "COMMA";        return COMMA;       }
-:              { LOG(logLvl) << "COLON";        return COLON;       }
-;              { LOG(logLvl) << "SEMICOLON";    return SEMICOLON;   }
-:=             { LOG(logLvl) << "ASSIGN";       return ASSIGN;      }
-\(             { LOG(logLvl) << "LPAR";         return LPAREN;      }
-\)             { LOG(logLvl) << "RPAR";         return RPAREN;      }
-\[             { LOG(logLvl) << "LBRACKET";     return LBRACKET;    }
-\]             { LOG(logLvl) << "RBRACKET";     return RBRACKET;    }
-\+             { LOG(logLvl) << "PLUS";         return PLUS;        }
-\-             { LOG(logLvl) << "MINUS";        return MINUS;       }
-\*             { LOG(logLvl) << "MULT";         return MULT;        }
-\/             { LOG(logLvl) << "DIVIDE";       return DIVIDE;      }
+\.\.           { LOG(ScannerLog) << "RANGE";        return RANGE;       }
+\.             { LOG(ScannerLog) << "DOT";          return DOT;         }
+,              { LOG(ScannerLog) << "COMMA";        return COMMA;       }
+:              { LOG(ScannerLog) << "COLON";        return COLON;       }
+;              { LOG(ScannerLog) << "SEMICOLON";    return SEMICOLON;   }
+:=             { LOG(ScannerLog) << "ASSIGN";       return ASSIGN;      }
+\(             { LOG(ScannerLog) << "LPAR";         return LPAREN;      }
+\)             { LOG(ScannerLog) << "RPAR";         return RPAREN;      }
+\[             { LOG(ScannerLog) << "LBRACKET";     return LBRACKET;    }
+\]             { LOG(ScannerLog) << "RBRACKET";     return RBRACKET;    }
+\+             { LOG(ScannerLog) << "PLUS";         return PLUS;        }
+\-             { LOG(ScannerLog) << "MINUS";        return MINUS;       }
+\*             { LOG(ScannerLog) << "MULT";         return MULT;        }
+\/             { LOG(ScannerLog) << "DIVIDE";       return DIVIDE;      }
 
   /************* Strings and ID's *************/
 
-\"[^"\n\r]*\"                  { LOG(logLvl) << "STRING     " << yytext;
+\"[^"\n\r]*\"                  { LOG(ScannerLog) << "STRING     " << yytext;
                                  yylval.lexeme = lexemeDup();  
                                  return STRING;                             }
-{LETTER}({LETTER}|{DIGIT}|_)*  { LOG(logLvl) << "IDENTIFIER " << yytext;
+{LETTER}({LETTER}|{DIGIT}|_)*  { LOG(ScannerLog) << "IDENTIFIER " << yytext;
                                  yylval.lexeme = lexemeDup();  
                                  return ID;                                 }
 
@@ -111,7 +122,7 @@ while          { LOG(logLvl) << "KEYWORD while";        return WHILE;       }
 
   /************* Catch Others *****************/
 
-.                       { LOG(logLvl) << "ERROR(" << currentLineNumber
+.                       { LOG(ScannerLog) << "ERROR(" << currentLineNumber
                                       << "): Unrecognized Symbol \""
                                       << yytext << '"';   
                           std::stringstream ss;

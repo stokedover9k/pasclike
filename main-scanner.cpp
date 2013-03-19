@@ -1,16 +1,18 @@
 #include <stdio.h>
 #include <iostream>
 #include "pasclike.tab.h"
-#include "loglib.h"
 
 using std::cout;
 using std::endl;
+
+YYSTYPE yylval;
 
 extern "C" {
   extern int yylex();
   extern FILE* yyin;
   extern char* yytext;
 }
+
 void reportToken( int token )
 {
   switch( token )
@@ -19,7 +21,12 @@ void reportToken( int token )
     case DECIMAL:     cout << "DECIMAL "    << yylval.lexeme;  break;
     case EXPNUMBER:   cout << "EXPNUMBER "  << yylval.lexeme;  break;
 
-    case RELOP:       cout << "RELOP "      << yylval.lexeme;  break;
+    case LE:          cout << "RELOP <=";  break;
+    case LT:          cout << "RELOP <" ;  break;
+    case GE:          cout << "RELOP >=";  break;
+    case GT:          cout << "RELOP >" ;  break;
+    case NE:          cout << "RELOP <>";  break;
+    case EQ:          cout << "RELOP =" ;  break;
 
     case STRING:      cout << "STRING "     << yylval.lexeme;  break;
     case ID:          cout << "IDENTIFIER " << yylval.lexeme;  break;
@@ -81,19 +88,23 @@ void reportToken( int token )
   yylval.lexeme = 0;
 }
 
+//=================================================
 int main( int argc, char* argv[] )
+//=================================================
 {
-  if( argc <= 1 ) {
-    cout << "Error: expected input filename as an argument\n"
-	 << "Usage: scanner-pasclike program_to_parse" << endl;
-    return 1;
-  }
-
-  yyin = fopen( argv[1], "r" );
-  if( yyin == NULL ) {
-    cout << "Error: could not open input file \"" << argv[1] << "\"." << endl;
-    return 1;
-  }
+  // Initialize INPUT:
+  // - if an argument is provided, it is expected to be the input file's name.
+  if( argc > 1 ) 
+    {
+      yyin = fopen( argv[1], "r" );  // Attempt to open the file.
+      if( yyin == NULL ) {           // If failed to open file, report error.
+	cout << "Error: could not open input file \"" 
+	     << argv[1] << "\"." << endl;
+	return 1;
+      }
+    }
+  // - else, read from default location (standard input).
+  //   - do nothing.
     
   int token;
   while( token = yylex() )
