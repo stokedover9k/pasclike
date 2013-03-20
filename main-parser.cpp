@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <iostream>
+#include <fstream>
 #include "pasclike.tab.h"
 #include "loglib.h"
+#include "parser_settings.h"
 
 extern int yyparse(void);
 extern FILE *yyin;
@@ -14,6 +16,10 @@ int main( int argc, char* argv[] )
 //=================================================
 {
   Output2FILE::Stream() = stdout;
+
+  // redirect output: rule logging
+  std::ofstream rulesOutFile("rule.out");
+  //rulesLog.rdbuf(rulesOutFile.rdbuf());
 
   // Initialize INPUT:
   // - if an argument is provided, it is expected to be the input file's name.
