@@ -3,7 +3,7 @@
 #include <fstream>
 #include "pasclike.tab.h"
 #include "loglib.h"
-#include "parser_settings.h"
+#include "parser-settings.h"
 
 extern int yyparse(void);
 extern FILE *yyin;

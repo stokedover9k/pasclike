@@ -25,13 +25,13 @@ ${LEXER_EXECUTABLE}: CFLAGS += \
  -DSCANNER_LOG_LVL=$(SCANNER_LOG_LVL_FOR_SCANNER) \
  -DPARSER_LOG_LVL=$(PARSER_LOG_LVL_FOR_SCANNER)
 
-${PARSER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h main-parser.cpp
+${PARSER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h parser-settings.h main-parser.cpp
 	g++ ${CFLAGS} ${LANG_NAME}.tab.c lex.yy.c main-parser.cpp -lfl -o ${PARSER_EXECUTABLE} 
 
 ${LEXER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.h ${SCANNER_HEADER} main-scanner.cpp 
 	g++ $(CFLAGS) lex.yy.c main-scanner.cpp -o ${LEXER_EXECUTABLE} 
 
-${LANG_NAME}.tab.c ${LANG_NAME}.tab.h: ${LANG_NAME}.y
+${LANG_NAME}.tab.c ${LANG_NAME}.tab.h: ${LANG_NAME}.y parser-settings.h 
 	bison -d ${LANG_NAME}.y
 
 lex.yy.c ${SCANNER_HEADER}: ${LANG_NAME}.l ${LANG_NAME}.tab.h

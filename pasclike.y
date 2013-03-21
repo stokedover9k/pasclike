@@ -23,6 +23,7 @@ extern "C" int yylex();
 TLogLevel ParserLog = PARSER_LOG_LVL;
 //---------------------------------
 //------- output settings ---------
+#include "parser-settings.h"
 // redirect in main if needed
 std::ostream rulesLog(std::cout.rdbuf());
 //---------------------------------
@@ -61,19 +62,23 @@ program : PROGRAM ID SEMICOLON
 									  }
         ;
     //============ TYPE DEFINITIONS =====================================
-opt_TypeDefs    : typeDefs 
-                | /* empty */
-                ;
-typeDef         : ID EQ type                                              { LOG(ParserLog) << "   typeDef := ID = type ;"; 
-                                                                            rulesLog << "type_definition" << endl;
-                                                                          }
-                ;
-typeDefs        : TYPE typeDef SEMICOLON typeDefList                      { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
-                                                                            rulesLog << "type_definitions" << endl; }
-                ;
-typeDefList     : typeDefList typeDef SEMICOLON
-                | /* empty */
-                ;
+opt_TypeDefs
+   : typeDefs 
+   | /* EMPTY */
+   ;
+typeDef
+   : ID EQ type                                              { LOG(ParserLog) << "   typeDef := ID = type ;"; 
+                                                               rulesLog << "type_definition" << endl; }
+   ;
+typeDefs
+   : TYPE typeDef SEMICOLON typeDefList                      { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
+                                                               rulesLog << "type_definitions" << endl; }
+   ;
+typeDefList
+   : typeDefList typeDef SEMICOLON                           { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
+                                                               rulesLog << "type_definitions_more" << endl; }
+   | /* empty */
+   ;
     //===================================================================
     //============ VARIABLE DECLARATIONS ================================
 opt_VarDecls : varDecls | /* empty */ ;
