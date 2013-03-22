@@ -24,8 +24,6 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
 //---------------------------------
 //------- output settings ---------
 #include "parser-settings.h"
-// redirect in main if needed
-std::ostream rulesLog(std::cout.rdbuf());
 //---------------------------------
 
 int yyerror( const char *p ) { LOG(logERROR) << p; }
