@@ -25,17 +25,20 @@ ${LEXER_EXECUTABLE}: CFLAGS += \
  -DSCANNER_LOG_LVL=$(SCANNER_LOG_LVL_FOR_SCANNER) \
  -DPARSER_LOG_LVL=$(PARSER_LOG_LVL_FOR_SCANNER)
 
-${PARSER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h parser-settings.h parser-settings.cpp main-parser.cpp
-	g++ ${CFLAGS} ${LANG_NAME}.tab.c lex.yy.c parser-settings.cpp main-parser.cpp -lfl -o ${PARSER_EXECUTABLE} 
+${PARSER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h parser-settings.h parser-settings.cpp main-parser.cpp symbol-table.o
+	g++ ${CFLAGS} ${LANG_NAME}.tab.c lex.yy.c parser-settings.cpp main-parser.cpp symbol-table.o -lfl -o ${PARSER_EXECUTABLE} 
 
-${LEXER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.h ${SCANNER_HEADER} main-scanner.cpp 
-	g++ $(CFLAGS) lex.yy.c main-scanner.cpp -o ${LEXER_EXECUTABLE} 
+${LEXER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.h ${SCANNER_HEADER} main-scanner.cpp symbol-table.o
+	g++ $(CFLAGS) lex.yy.c main-scanner.cpp symbol-table.o -o ${LEXER_EXECUTABLE} 
 
 ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h: ${LANG_NAME}.y parser-settings.h 
 	bison -d ${LANG_NAME}.y
 
 lex.yy.c ${SCANNER_HEADER}: ${LANG_NAME}.l ${LANG_NAME}.tab.h
 	flex --header-file=${SCANNER_HEADER} ${LANG_NAME}.l
+
+symbol-table.o: symbol-table.h symbol-table.cpp
+	g++ $(CFLAGS) -c symbol-table.cpp
 
 clean:
 	rm -fv *.o ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h lex.yy.c ${SCANNER_HEADER}

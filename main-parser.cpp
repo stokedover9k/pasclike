@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <iostream>
+#include <list>
 #include <fstream>
 #include "pasclike.tab.h"
 #include "loglib.h"
 #include "parser-settings.h"
+#include "symbol-table.h"
 
 extern int yyparse(void);
 extern FILE *yyin;
@@ -38,6 +40,16 @@ int main( int argc, char* argv[] )
   do {
     yyparse();
   } while (!feof(yyin));
+
+  // Print Symbol Table
+  std::filebuf fb;
+  fb.open("symtable.out", std::ios::out);
+  //std::ostream symOut(cout.rdbuf());
+  std::ostream symOut(&fb);
+  for( SymRecord const& record : toVector(symTable) )
+    {
+      symOut << record << "\n";
+    }
 
   return 0;
 }

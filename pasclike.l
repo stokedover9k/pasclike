@@ -1,6 +1,7 @@
 %{
 
 #include <iostream>
+#include <list>
 #include <stdlib.h>
 #include <cstring>
 #include "pasclike.tab.h"
@@ -13,6 +14,9 @@
 #endif
 
 TLogLevel ScannerLog = SCANNER_LOG_LVL;
+//---------------------------------
+//------- symbol table ------------
+#include "symbol-table.h"
 //---------------------------------
 
 #define YY_DECL extern "C" int yylex(void)
@@ -109,7 +113,8 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
                                  yylval.lexeme = lexemeDup();  
                                  return STRING;                             }
 {LETTER}({LETTER}|{DIGIT}|_)*  { LOG(ScannerLog) << "IDENTIFIER " << yytext;
-                                 yylval.lexeme = lexemeDup();  
+                                 addSymbol( std::string(yytext) );
+                                 yylval.lexeme = lexemeDup();
                                  return ID;                                 }
 
   /************* Comments *********************/
