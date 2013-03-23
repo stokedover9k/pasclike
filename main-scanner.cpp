@@ -36,18 +36,18 @@ void reportToken( int token )
 			   << '"';                             break;
 
     case RANGE:      cout << "RANGE"    ;  break;
-    case DOT:        cout << "DOT"      ;  break;
-    case COMMA:      cout << "COMMA"    ;  break;
-    case COLON:      cout << "COLON"    ;  break;
-    case SEMICOLON:  cout << "SEMICOLON";  break;
+    case '.':        cout << "DOT"      ;  break;
+    case ',':        cout << "COMMA"    ;  break;
+    case ':':        cout << "COLON"    ;  break;
+    case ';':        cout << "SEMICOLON";  break;
     case ASSIGN:     cout << "ASSIGN"   ;  break;
-    case LPAREN:     cout << "LPAR"     ;  break;
-    case RPAREN:     cout << "RPAR"     ;  break;
-    case LBRACKET:   cout << "LBRACKET" ;  break;
-    case RBRACKET:   cout << "RBRACKET" ;  break;
-    case PLUS:       cout << "PLUS"     ;  break;
-    case MINUS:      cout << "MINUS"    ;  break;
-    case MULT:       cout << "MULT"     ;  break;
+    case '(':        cout << "LPAR"     ;  break;
+    case ')':        cout << "RPAR"     ;  break;
+    case '[':        cout << "LBRACKET" ;  break;
+    case ']':        cout << "RBRACKET" ;  break;
+    case '+':        cout << "PLUS"     ;  break;
+    case '-':        cout << "MINUS"    ;  break;
+    case '*':        cout << "MULT"     ;  break;
 
     default:
       cout << "KEYWORD ";

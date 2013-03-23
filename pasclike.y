@@ -75,9 +75,9 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 %token BEGIN_TOKEN FORWARD DO ELSE END_TOKEN FOR IF THEN
 %token DIV MOD
 %token FUNCTION ARRAY PROCEDURE PROGRAM RECORD TYPE VAR WHILE
-%token DOT COMMA COLON SEMICOLON ASSIGN RANGE LPAREN RPAREN LBRACKET RBRACKET
-%token PLUS MINUS MULT
 %token LE LT GE GT NE EQ
+
+%token ASSIGN RANGE 
 
 %token <lexeme> INTEGER DECIMAL EXPNUMBER
 %token <lexeme> STRING
@@ -88,11 +88,11 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 %%
 
 program 
-   : PROGRAM ID SEMICOLON 
+   : PROGRAM ID ';' 
      opt_TypeDefs
      opt_VarDecls
      opt_SubprogDecls
-     compoundStmt DOT
+     compoundStmt '.'
                                 { LOG(ParserLog) << "   Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .";
 				  rulesLog << "program" << endl;
 				}
@@ -108,11 +108,11 @@ typeDef
                                                   rulesLog << "type_definition" << endl; }
    ;
 typeDefs
-   : TYPE typeDef SEMICOLON typeDefList         { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
+   : TYPE typeDef ';' typeDefList               { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
                                                   rulesLog << "type_definitions" << endl; }
    ;
 typeDefList
-   : typeDefList typeDef SEMICOLON              { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
+   : typeDefList typeDef ';'                    { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
                                                   rulesLog << "type_definitions_more" << endl; }
    | /* empty */
    ;
@@ -123,14 +123,14 @@ opt_VarDecls
    | /* empty */ 
    ;
 varDecls
-   : VAR varDecl SEMICOLON varDeclList          { LOG(ParserLog) << "   varDecls := VAR varDecl ; varDeclList"; }
+   : VAR varDecl ';' varDeclList                { LOG(ParserLog) << "   varDecls := VAR varDecl ; varDeclList"; }
    ;
 varDeclList
-   : varDeclList varDecl SEMICOLON              { rulesLog << "variable_declarations" << endl; }
+   : varDeclList varDecl ';'                    { rulesLog << "variable_declarations" << endl; }
    | /* empty */
    ;
 varDecl
-   : identifierList COLON type                  { LOG(ParserLog) << "   varDecl := identifierList : type";
+   : identifierList ':' type                    { LOG(ParserLog) << "   varDecl := identifierList : type";
                                                   rulesLog << "variable_declaration" << endl;
 
 						  setIdListToType( $<attr>1, $<lexeme>3 );
@@ -143,33 +143,33 @@ opt_SubprogDecls
    : subprogDeclList 
    ;
 subprogDeclList
-   : subprogDeclList procDecl SEMICOLON
-   | subprogDeclList funcDecl SEMICOLON
+   : subprogDeclList procDecl ';'
+   | subprogDeclList funcDecl ';'
    | /* empty */
    ;
     //===================================================================
 procDecl 
-   : PROCEDURE ID LPAREN formalParamList RPAREN SEMICOLON block                     { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
+   : PROCEDURE ID '(' formalParamList ')' ';' block                                 { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
                                                                                       addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
 										      delete $<attr>4.syn;
                                                                                     }
-   | PROCEDURE ID LPAREN formalParamList RPAREN SEMICOLON FORWARD                   { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
+   | PROCEDURE ID '(' formalParamList ')' ';' FORWARD                               { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
                                                                                       addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
 										      delete $<attr>4.syn;
                                                                                     }
    ;
 funcDecl
-   : FUNCTION ID LPAREN formalParamList RPAREN COLON resultType SEMICOLON block     { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
+   : FUNCTION ID '(' formalParamList ')' ':' resultType ';' block                   { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
                                                                                       addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
 										      delete $<attr>4.syn;
                                                                                     }
-   | FUNCTION ID LPAREN formalParamList RPAREN COLON resultType SEMICOLON FORWARD   { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
+   | FUNCTION ID '(' formalParamList ')' ':' resultType ';' FORWARD                 { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
                                                                                       addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
 										      delete $<attr>4.syn;
                                                                                     }
    ;
 formalParamList
-   : identifierList COLON type formalParamListTail        { LOG(ParserLog) << "   formalParamList := identifierList : type formalParamListTail"; 
+   : identifierList ':' type formalParamListTail          { LOG(ParserLog) << "   formalParamList := identifierList : type formalParamListTail"; 
                                                             $<attr>$.syn = $<attr>4.syn;  // steal number attribut from tail
 							    $<attr>$.syn->num += $<attr>1.syn->strList->size();
 							    setIdListToType( $<attr>1, $<lexeme>3 );
@@ -178,7 +178,7 @@ formalParamList
    | /* empty */                                          { $<attr>$.syn = new attrib;   $<attr>$.syn->num = 0; }
    ;
 formalParamListTail
-   : formalParamListTail SEMICOLON identifierList COLON type     { $<attr>$.syn = $<attr>1.syn;  // steal number attribute from head of tail
+   : formalParamListTail ';' identifierList ':' type             { $<attr>$.syn = $<attr>1.syn;  // steal number attribute from head of tail
                                                                    $<attr>$.syn->num += $<attr>3.syn->strList->size();
 								   setIdListToType( $<attr>3, $<lexeme>5 );
 								   cleanUpIdList( $<attr>3 ); 
@@ -190,7 +190,7 @@ actualParamList
    | /* empty */ 
    ;
 actualParamListTail
-   : actualParamListTail COMMA expr
+   : actualParamListTail ',' expr
    | /* empty */ 
    ;
 block
@@ -232,7 +232,7 @@ assignmentStmt
    : variable ASSIGN expr                               { LOG(ParserLog) << "   assignmentStmt := variable := expr"; }
    ;
 procedureStmt
-   : ID LPAREN actualParamList RPAREN                   { LOG(ParserLog) << "   procedureStmt := id ( actualParamList )"; }
+   : ID '(' actualParamList ')'                         { LOG(ParserLog) << "   procedureStmt := id ( actualParamList )"; }
    ;
 compoundStmt
    : BEGIN_TOKEN stmtSequence END_TOKEN                 { LOG(ParserLog) << "   compoundStmt := begin stmtSequence end"; }
@@ -241,7 +241,7 @@ stmtSequence
    : stmt stmtSequenceTail                              { LOG(ParserLog) << "   stmtSequence := stmt stmtSequenceTail"; }
    ;
 stmtSequenceTail
-   : stmtSequenceTail SEMICOLON stmt
+   : stmtSequenceTail ';' stmt
    | /* empty */
    ;
     //===================================================================
@@ -270,18 +270,18 @@ factor
    | variable                                                     { LOG(ParserLog) << "   factor := variable";  }
    | functionReference                                            { LOG(ParserLog) << "   factor := functionReference";  }
    | NOT factor                                                   { LOG(ParserLog) << "   factor := not factor";  }
-   | LPAREN expr RPAREN                                           { LOG(ParserLog) << "   factor := ( expr )";  }
+   | '(' expr ')'                                                 { LOG(ParserLog) << "   factor := ( expr )";  }
    ;
 functionReference
-   : ID LPAREN actualParamList RPAREN 
+   : ID '(' actualParamList ')' 
    ;
 addOp
-   : PLUS                                                             { LOG(ParserLog) << "   addOp := +";    }
-   | MINUS                                                            { LOG(ParserLog) << "   addOp := *";    }
+   : '+'                                                              { LOG(ParserLog) << "   addOp := +";    }
+   | '-'                                                              { LOG(ParserLog) << "   addOp := *";    }
    | OR                                                               { LOG(ParserLog) << "   addOp := OR";   }
    ;
 mulOp
-   : MULT                                                             { LOG(ParserLog) << "   mulOp := *";    }
+   : '*'                                                              { LOG(ParserLog) << "   mulOp := *";    }
    | DIV                                                              { LOG(ParserLog) << "   mulOp := div";  }
    | MOD                                                              { LOG(ParserLog) << "   mulOp := %";    }
    | AND                                                              { LOG(ParserLog) << "   mulOp := AND";  }
@@ -297,7 +297,7 @@ relOp
     //===================================================================
 
 fieldList
-   : identifierList COLON type fieldListTail              { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
+   : identifierList ':' type fieldListTail                { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
                                                             rulesLog << "field_list" << endl; 
 							    setIdListToType( $<attr>1, $<lexeme>3 );
 							    cleanUpIdList( $<attr>1 );
@@ -305,7 +305,7 @@ fieldList
    | /* empty */                                          { rulesLog << "field_list(empty)" << endl; }
    ;
 fieldListTail
-   : fieldListTail SEMICOLON identifierList COLON type    { setIdListToType( $<attr>3, $<lexeme>5 );
+   : fieldListTail ';' identifierList ':' type            { setIdListToType( $<attr>3, $<lexeme>5 );
 							    cleanUpIdList( $<attr>3 );
                                                           }
    | /* empty */
@@ -321,7 +321,7 @@ identifierList
                                                           }
    ;
 identifierListTail
-    : identifierListTail COMMA ID                         { $<attr>$.syn = $<attr>1.syn;                                   // reuse existing YYSTYPE from $1
+    : identifierListTail ',' ID                           { $<attr>$.syn = $<attr>1.syn;                                   // reuse existing YYSTYPE from $1
 							    $<attr>$.syn->strList->push_front( std::string($<lexeme>3) );  // add new id to the list
                                                           }
     | /* empty */                                         { $<attr>$.syn = new attrib;
@@ -336,18 +336,18 @@ variable
    : ID componentSelection                                { LOG(ParserLog) << "   variable := id componentSelection"; }
    ;
 componentSelection
-   : componentSelection DOT ID                            { LOG(ParserLog) << "   componentSelection := . id componentSelection"; }
-   | componentSelection LBRACKET expr RBRACKET            { LOG(ParserLog) << "   componentSelection := [ expr ] componentSelection"; }
+   : componentSelection '.' ID                            { LOG(ParserLog) << "   componentSelection := . id componentSelection"; }
+   | componentSelection '[' expr ']'                      { LOG(ParserLog) << "   componentSelection := [ expr ] componentSelection"; }
    | /* empty */ 
    ;
-sign : PLUS | MINUS ;
+sign : '+' | '-' ;
 
 type
    : ID                                                       { LOG(ParserLog) << "   type := ID"; 
                                                                 rulesLog << "type_ID" << endl;
 								$<lexeme>$ = $1;
                                                               }
-   | ARRAY LBRACKET constant RANGE constant RBRACKET OF type  { LOG(ParserLog) << "   type := ARRAY [ constant .. constant ] of type";
+   | ARRAY '[' constant RANGE constant ']' OF type            { LOG(ParserLog) << "   type := ARRAY [ constant .. constant ] of type";
                                                                 rulesLog << "type_ARRAY" << endl;
 								$<lexeme>$ = "array";
                                                               }

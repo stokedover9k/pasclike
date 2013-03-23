@@ -48,7 +48,7 @@ RELOP         >=?|<[>=]?|=
   /************* White Space & Line Counts ****/
 
 [ \t]*         { /* ignore whitespace */ }
-\n             { currentLineNumber++;    }
+[\n\r]         { currentLineNumber++;    }
 
   /************* Numbers **********************/
 
@@ -94,18 +94,18 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
   /************* Reserved Symbols *************/
 
 \.\.           { LOG(ScannerLog) << "RANGE";        return RANGE;       }
-\.             { LOG(ScannerLog) << "DOT";          return DOT;         }
-,              { LOG(ScannerLog) << "COMMA";        return COMMA;       }
-:              { LOG(ScannerLog) << "COLON";        return COLON;       }
-;              { LOG(ScannerLog) << "SEMICOLON";    return SEMICOLON;   }
+\.             { LOG(ScannerLog) << "DOT";          return '.';         }
+,              { LOG(ScannerLog) << "COMMA";        return ',';         }
+:              { LOG(ScannerLog) << "COLON";        return ':';         }
+;              { LOG(ScannerLog) << "SEMICOLON";    return ';';         }
 :=             { LOG(ScannerLog) << "ASSIGN";       return ASSIGN;      }
-\(             { LOG(ScannerLog) << "LPAR";         return LPAREN;      }
-\)             { LOG(ScannerLog) << "RPAR";         return RPAREN;      }
-\[             { LOG(ScannerLog) << "LBRACKET";     return LBRACKET;    }
-\]             { LOG(ScannerLog) << "RBRACKET";     return RBRACKET;    }
-\+             { LOG(ScannerLog) << "PLUS";         return PLUS;        }
-\-             { LOG(ScannerLog) << "MINUS";        return MINUS;       }
-\*             { LOG(ScannerLog) << "MULT";         return MULT;        }
+\(             { LOG(ScannerLog) << "LPAR";         return '(';         }
+\)             { LOG(ScannerLog) << "RPAR";         return ')';         }
+\[             { LOG(ScannerLog) << "LBRACKET";     return '[';         }
+\]             { LOG(ScannerLog) << "RBRACKET";     return ']';         }
+\+             { LOG(ScannerLog) << "PLUS";         return '+';         }
+\-             { LOG(ScannerLog) << "MINUS";        return '-';         }
+\*             { LOG(ScannerLog) << "MULT";         return '*';         }
 
   /************* Strings and ID's *************/
 
@@ -120,8 +120,8 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
   /************* Comments *********************/
 
 \{                      { commentCaller = YYSTATE;  BEGIN( IN_COMMENT );    }
-<IN_COMMENT>[^\n\}]*    { /* Discard comment text */                        }
-<IN_COMMENT>\n          { currentLineNumber++;                              }
+<IN_COMMENT>[^\n\r\}]*  { /* Discard comment text */                        }
+<IN_COMMENT>[\n\r]      { currentLineNumber++;                              }
 <IN_COMMENT>\}          { BEGIN( commentCaller );                           }
 
   /************* Catch Others *****************/
