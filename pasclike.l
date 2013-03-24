@@ -110,11 +110,11 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
   /************* Strings and ID's *************/
 
 \"[^"\n\r]*\"                  { LOG(ScannerLog) << "STRING     " << yytext;
-                                 yylval.lexeme = lexemeDup();  
+                                 yylval.lexeme = lexemeDup();
                                  return STRING;                             }
 {LETTER}({LETTER}|{DIGIT}|_)*  { LOG(ScannerLog) << "IDENTIFIER " << yytext;
-                                 addSymbol( std::string(yytext) );
-                                 yylval.lexeme = lexemeDup();
+                                 int sym_addr = sym_table.put( std::string(yytext) );
+                                 yylval.symbol.id = sym_addr;
                                  return ID;                                 }
 
   /************* Comments *********************/

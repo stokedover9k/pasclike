@@ -44,12 +44,10 @@ int main( int argc, char* argv[] )
   // Print Symbol Table
   std::filebuf fb;
   fb.open("symtable.out", std::ios::out);
+  //---- uncomment one ---------------
   //std::ostream symOut(cout.rdbuf());
   std::ostream symOut(&fb);
-  for( SymRecord const& record : toVector(symTable) )
-    {
-      symOut << record << "\n";
-    }
-
+  //----------------------------------
+  symOut << sym_table << std::flush;
   return 0;
 }

@@ -25,21 +25,20 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
 #include "parser-settings.h"
 //---------------------------------
 //------- symbol table ------------
-#include "symbol-table.h"
+//#include "symbol-table.h"
 //---------------------------------
 
 int yyerror( const char *p ) { LOG(logERROR) << p; }
 
- void setIdListToType( attributes const& symbol, char const *type )
+ void setIdListToType( id_list_attributes const& id_list, symbol_attributes const& type )
  {
-   for( std::string const& id : *symbol.syn->strList )
-     addSymbol( id, std::string(type) );
+   for( Sym_table::Index_type const& id : *id_list.symbols )
+     sym_table.set_type( id, type.id );
  }
 
- void cleanUpIdList( attributes const& symbol )
+ void cleanUpIdList( id_list_attributes const& id_list )
  {
-   delete symbol.syn->strList;
-   delete symbol.syn;
+   delete id_list.symbols;
  }
 
  std::string numToString( int num )
@@ -52,6 +51,7 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 
 %code requires {
   #include <list>
+  #include "symbol-table.h"
 
   #ifndef __ATTRIB_STRUCTS_DEF__
   #define __ATTRIB_STRUCTS_DEF__
@@ -63,11 +63,20 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
     attrib *syn;
     attrib *inh;
   };
+  struct symbol_attributes {
+    Sym_table::Index_type id;
+    attrib *syn;
+  };
+  struct id_list_attributes {
+    std::list<Sym_table::Index_type> *symbols;
+  };
   #endif//__ATTRIB_STRUCTS_DEF__
 }
 
 %union {
   char const *lexeme;
+  struct symbol_attributes symbol;
+  struct id_list_attributes id_list;
   struct attributes attr;
 }
 
@@ -81,9 +90,12 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 
 %token <lexeme> INTEGER DECIMAL EXPNUMBER
 %token <lexeme> STRING
-%token <lexeme> ID
+%token <symbol> ID
 
 %token <lexeme> ERROR_TOKEN
+
+%type <id_list> formalParamList formalParamListTail identifierList identifierListTail
+%type <symbol> type
 
 %%
 
@@ -104,7 +116,7 @@ opt_TypeDefs
    ;
 typeDef
    : ID EQ type                        { LOG(ParserLog) << "   typeDef := ID = type ;";
-                                         addSymbol( std::string($1), std::string($<lexeme>3) );
+                                         sym_table.set_type( $1.id, $3.id );
 					 rulesLog << "type_definition" << endl; }
    ;
 typeDefs
@@ -132,8 +144,8 @@ varDeclList
 varDecl
    : identifierList ':' type           { LOG(ParserLog) << "   varDecl := identifierList : type";
                                          rulesLog << "variable_declaration" << endl;
-					 setIdListToType( $<attr>1, $<lexeme>3 );
-					 cleanUpIdList( $<attr>1 ); }
+					 setIdListToType( $1, $3 );
+					 cleanUpIdList( $1 ); }
    ;
     //===================================================================
     //============ SUBPROGRAM DECLARATIONS ==============================
@@ -147,36 +159,35 @@ subprogDeclList
    ;
 procDecl 
    : PROCEDURE ID '(' formalParamList ')' ';' block                    { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
-                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-									 delete $<attr>4.syn; }
+									 sym_table.set_routine_type( $2.id, $4.symbols->size() );
+									 cleanUpIdList( $4 ); }
    | PROCEDURE ID '(' formalParamList ')' ';' FORWARD                  { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
-                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-									 delete $<attr>4.syn; }
+									 sym_table.set_routine_type( $2.id, $4.symbols->size() );
+									 cleanUpIdList( $4 ); }
    ;
 funcDecl
    : FUNCTION ID '(' formalParamList ')' ':' resultType ';' block      { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
-                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-									 delete $<attr>4.syn; }
+									 sym_table.set_routine_type( $2.id, $4.symbols->size() );
+									 cleanUpIdList( $4 ); }
    | FUNCTION ID '(' formalParamList ')' ':' resultType ';' FORWARD    { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
-                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-									 delete $<attr>4.syn; }
+									 sym_table.set_routine_type( $2.id, $4.symbols->size() );
+									 cleanUpIdList( $4 ); }
    ;
 formalParamList
    : identifierList ':' type formalParamListTail          { LOG(ParserLog) << "   formalParamList := identifierList : type formalParamListTail"; 
-                                                            $<attr>$.syn = $<attr>4.syn;  // steal number attribut from tail
-							    $<attr>$.syn->num += $<attr>1.syn->strList->size();
-							    setIdListToType( $<attr>1, $<lexeme>3 );
-							    cleanUpIdList( $<attr>1 ); }
-   | /* empty */                                          { $<attr>$.syn = new attrib;
-                                                            $<attr>$.syn->num = 0; }
+                                                            $$.symbols = $4.symbols;         // steal symbol list from tail
+							    $$.symbols->insert( $$.symbols->begin(), $1.symbols->begin(), $1.symbols->end() );
+							    setIdListToType( $1, $3 );
+							    cleanUpIdList( $1 ); }
+   | /* empty */                                          { $$.symbols = new std::list<Sym_table::Index_type>(); }
    ;
 formalParamListTail
-   : formalParamListTail ';' identifierList ':' type      { $<attr>$.syn = $<attr>1.syn;  // steal number attribute from head of tail
-                                                            $<attr>$.syn->num += $<attr>3.syn->strList->size();
-							    setIdListToType( $<attr>3, $<lexeme>5 );
-							    cleanUpIdList( $<attr>3 ); }
-   | /* empty */                                          { $<attr>$.syn = new attrib;
-                                                            $<attr>$.syn->num = 0; }
+   : formalParamListTail ';' identifierList ':' type      { $$.symbols = $1.symbols;      // steal symbol list from head of tail
+                                                            // insert all ids from identifierList into the paramList
+                                                            $$.symbols->insert( $$.symbols->end(), $3.symbols->begin(), $3.symbols->end() );  
+							    setIdListToType( $3, $5 );
+							    cleanUpIdList( $3 ); }
+   | /* empty */                                          { $$.symbols = new std::list<Sym_table::Index_type>(); }
    ;
 actualParamList
    : expr actualParamListTail                             { LOG(ParserLog) << "   actualParamList := expr actualParamListTail"; }
@@ -293,29 +304,28 @@ relOp
 fieldList
    : identifierList ':' type fieldListTail            { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
                                                         rulesLog << "field_list" << endl; 
-							setIdListToType( $<attr>1, $<lexeme>3 );
-							cleanUpIdList( $<attr>1 ); }
+							setIdListToType( $1, $3 );
+							cleanUpIdList( $1 ); }
    | /* empty */                                      { rulesLog << "field_list(empty)" << endl; }
    ;
 fieldListTail
-   : fieldListTail ';' identifierList ':' type        { setIdListToType( $<attr>3, $<lexeme>5 );
-					                cleanUpIdList( $<attr>3 ); }
+   : fieldListTail ';' identifierList ':' type        { setIdListToType( $3, $5 );
+							cleanUpIdList( $3 ); }
    | /* empty */
    ;
 
     // NOTE: identifierList must be cleaned up after it's used.  
-    // Call cleanUpIdList( $<attr>n ); which is equivalent to "delete $<attr>n.syn->strList;  delete $<attr>n.syn;"
+    // Call cleanUpIdList( $n ); which is equivalent to "delete $<id_list>n.symbols;"
 identifierList
    : ID identifierListTail                            { LOG(ParserLog) << "   identifierList := ID identifierListTail"; 
                                                         rulesLog << "identifier_list" << endl; 
-							$<attr>$.syn = $<attr>2.syn;  // reuse existing YYSTYPE from list tail
-							$<attr>$.syn->strList->push_front( std::string($<lexeme>1) ); }
+							$$.symbols = $2.symbols;                                 // reuse existing list of ids
+							$$.symbols->push_front( $1.id ); }
    ;
 identifierListTail
-    : identifierListTail ',' ID                       { $<attr>$.syn = $<attr>1.syn;                                    // reuse existing YYSTYPE from $1
-						        $<attr>$.syn->strList->push_front( std::string($<lexeme>3) ); } // add new id to the list
-    | /* empty */                                     { $<attr>$.syn = new attrib;
-                                                        $<attr>$.syn->strList = new std::list<std::string>(); }
+    : identifierListTail ',' ID                       { $$.symbols = $1.symbols;                                 // reuse existing list of ids
+						        $$.symbols->push_front( $3.id ); }                       // add new id to the list
+    | /* empty */                                     { $$.symbols = new std::list<Sym_table::Index_type>(); }   // create new (empty) list of ids
     ;
 constant
    : sign INTEGER                                     { LOG(ParserLog) << "   constant := sign int"; }
@@ -333,14 +343,11 @@ sign : '+' | '-' ;
 
 type
    : ID                                               { LOG(ParserLog) << "   type := ID"; 
-                                                        rulesLog << "type_ID" << endl;
-							$<lexeme>$ = $1; }
+							$$.id = $1.id; }
    | ARRAY '[' constant RANGE constant ']' OF type    { LOG(ParserLog) << "   type := ARRAY [ constant .. constant ] of type";
-                                                        rulesLog << "type_ARRAY" << endl;
-							$<lexeme>$ = "array"; }
+							$$.id = sym_table.put("array"); }
    | RECORD fieldList END_TOKEN                       { LOG(ParserLog) << "   type := RECORD fieldList END";
-                                                        rulesLog << "type_RECORD" << endl;
-							$<lexeme>$ = "record"; }
+							$$.id = sym_table.put("record"); }
    ;
 
 resultType
