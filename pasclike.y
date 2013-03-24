@@ -93,9 +93,9 @@ program
      opt_VarDecls
      opt_SubprogDecls
      compoundStmt '.'
-                                { LOG(ParserLog) << "   Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .";
-				  rulesLog << "program" << endl;
-				}
+                        { LOG(ParserLog) << "   Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .";
+			  rulesLog << "program" << endl;
+			}
         ;
     //============ TYPE DEFINITIONS =====================================
 opt_TypeDefs
@@ -103,17 +103,17 @@ opt_TypeDefs
    | /* EMPTY */
    ;
 typeDef
-   : ID EQ type                                 { LOG(ParserLog) << "   typeDef := ID = type ;";
-                                                  addSymbol( std::string($1), std::string($<lexeme>3) );
-                                                  rulesLog << "type_definition" << endl; }
+   : ID EQ type                        { LOG(ParserLog) << "   typeDef := ID = type ;";
+                                         addSymbol( std::string($1), std::string($<lexeme>3) );
+					 rulesLog << "type_definition" << endl; }
    ;
 typeDefs
-   : TYPE typeDef ';' typeDefList               { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
-                                                  rulesLog << "type_definitions" << endl; }
+   : TYPE typeDef ';' typeDefList      { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
+                                         rulesLog << "type_definitions" << endl; }
    ;
 typeDefList
-   : typeDefList typeDef ';'                    { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
-                                                  rulesLog << "type_definitions_more" << endl; }
+   : typeDefList typeDef ';'           { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
+                                         rulesLog << "type_definitions_more" << endl; }
    | /* empty */
    ;
     //===================================================================
@@ -123,19 +123,17 @@ opt_VarDecls
    | /* empty */ 
    ;
 varDecls
-   : VAR varDecl ';' varDeclList                { LOG(ParserLog) << "   varDecls := VAR varDecl ; varDeclList"; }
+   : VAR varDecl ';' varDeclList       { LOG(ParserLog) << "   varDecls := VAR varDecl ; varDeclList"; }
    ;
 varDeclList
-   : varDeclList varDecl ';'                    { rulesLog << "variable_declarations" << endl; }
+   : varDeclList varDecl ';'           { rulesLog << "variable_declarations" << endl; }
    | /* empty */
    ;
 varDecl
-   : identifierList ':' type                    { LOG(ParserLog) << "   varDecl := identifierList : type";
-                                                  rulesLog << "variable_declaration" << endl;
-
-						  setIdListToType( $<attr>1, $<lexeme>3 );
-						  cleanUpIdList( $<attr>1 );
-                                                }
+   : identifierList ':' type           { LOG(ParserLog) << "   varDecl := identifierList : type";
+                                         rulesLog << "variable_declaration" << endl;
+					 setIdListToType( $<attr>1, $<lexeme>3 );
+					 cleanUpIdList( $<attr>1 ); }
    ;
     //===================================================================
     //============ SUBPROGRAM DECLARATIONS ==============================
@@ -147,46 +145,41 @@ subprogDeclList
    | subprogDeclList funcDecl ';'
    | /* empty */
    ;
-    //===================================================================
 procDecl 
-   : PROCEDURE ID '(' formalParamList ')' ';' block                                 { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
-                                                                                      addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-										      delete $<attr>4.syn;
-                                                                                    }
-   | PROCEDURE ID '(' formalParamList ')' ';' FORWARD                               { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
-                                                                                      addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-										      delete $<attr>4.syn;
-                                                                                    }
+   : PROCEDURE ID '(' formalParamList ')' ';' block                    { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
+                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
+									 delete $<attr>4.syn; }
+   | PROCEDURE ID '(' formalParamList ')' ';' FORWARD                  { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
+                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
+									 delete $<attr>4.syn; }
    ;
 funcDecl
-   : FUNCTION ID '(' formalParamList ')' ':' resultType ';' block                   { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
-                                                                                      addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-										      delete $<attr>4.syn;
-                                                                                    }
-   | FUNCTION ID '(' formalParamList ')' ':' resultType ';' FORWARD                 { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
-                                                                                      addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
-										      delete $<attr>4.syn;
-                                                                                    }
+   : FUNCTION ID '(' formalParamList ')' ':' resultType ';' block      { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
+                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
+									 delete $<attr>4.syn; }
+   | FUNCTION ID '(' formalParamList ')' ':' resultType ';' FORWARD    { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
+                                                                         addSymbol( std::string($<lexeme>2), numToString( $<attr>4.syn->num ) );
+									 delete $<attr>4.syn; }
    ;
 formalParamList
    : identifierList ':' type formalParamListTail          { LOG(ParserLog) << "   formalParamList := identifierList : type formalParamListTail"; 
                                                             $<attr>$.syn = $<attr>4.syn;  // steal number attribut from tail
 							    $<attr>$.syn->num += $<attr>1.syn->strList->size();
 							    setIdListToType( $<attr>1, $<lexeme>3 );
-							    cleanUpIdList( $<attr>1 );
-                                                          }
-   | /* empty */                                          { $<attr>$.syn = new attrib;   $<attr>$.syn->num = 0; }
+							    cleanUpIdList( $<attr>1 ); }
+   | /* empty */                                          { $<attr>$.syn = new attrib;
+                                                            $<attr>$.syn->num = 0; }
    ;
 formalParamListTail
-   : formalParamListTail ';' identifierList ':' type             { $<attr>$.syn = $<attr>1.syn;  // steal number attribute from head of tail
-                                                                   $<attr>$.syn->num += $<attr>3.syn->strList->size();
-								   setIdListToType( $<attr>3, $<lexeme>5 );
-								   cleanUpIdList( $<attr>3 ); 
-                                                                 }
-   | /* empty */                                                 { $<attr>$.syn = new attrib;   $<attr>$.syn->num = 0; }
+   : formalParamListTail ';' identifierList ':' type      { $<attr>$.syn = $<attr>1.syn;  // steal number attribute from head of tail
+                                                            $<attr>$.syn->num += $<attr>3.syn->strList->size();
+							    setIdListToType( $<attr>3, $<lexeme>5 );
+							    cleanUpIdList( $<attr>3 ); }
+   | /* empty */                                          { $<attr>$.syn = new attrib;
+                                                            $<attr>$.syn->num = 0; }
    ;
 actualParamList
-   : expr actualParamListTail                                                       { LOG(ParserLog) << "   actualParamList := expr actualParamListTail"; }
+   : expr actualParamListTail                             { LOG(ParserLog) << "   actualParamList := expr actualParamListTail"; }
    | /* empty */ 
    ;
 actualParamListTail
@@ -194,9 +187,10 @@ actualParamListTail
    | /* empty */ 
    ;
 block
-   : varDecls compoundStmt                                                          { LOG(ParserLog) << "   block := varDecls compoundStmt"; }
-   | compoundStmt                                                                   { LOG(ParserLog) << "   block := varDecls"; }
+   : varDecls compoundStmt                                { LOG(ParserLog) << "   block := varDecls compoundStmt"; }
+   | compoundStmt                                         { LOG(ParserLog) << "   block := varDecls"; }
    ;
+    //===================================================================
     //============ STATEMENTS ===========================================
 stmt
    : closedStmt                                         { LOG(ParserLog) << "   stmt := closedStmt"; }
@@ -246,119 +240,111 @@ stmtSequenceTail
    ;
     //===================================================================
 expr
-   : simpleExpr relOp simpleExpr                                  { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";  }
-   | simpleExpr                                                   { LOG(ParserLog) << "   expr := simpleExpr";  }
+   : simpleExpr relOp simpleExpr      { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";  }
+   | simpleExpr                       { LOG(ParserLog) << "   expr := simpleExpr";  }
    ;
 simpleExpr
-   : sign termList                                                { LOG(ParserLog) << "   simpleExpr := sign termList";  }
-   |      termList                                                { LOG(ParserLog) << "   simpleExpr := termList";  }
+   : sign termList                    { LOG(ParserLog) << "   simpleExpr := sign termList";  }
+   |      termList                    { LOG(ParserLog) << "   simpleExpr := termList";  }
    ;
 termList
    : termList addOp term
    | term
    ;
 term
-   : factorList                                                   { LOG(ParserLog) << "   term := factorList";  }
+   : factorList                       { LOG(ParserLog) << "   term := factorList";  }
    ;
 factorList
    : factorList mulOp factor 
    | factor
    ;
 factor
-   : INTEGER                                                      { LOG(ParserLog) << "   factor := int";  }
-   | STRING                                                       { LOG(ParserLog) << "   factor := string";  }
-   | variable                                                     { LOG(ParserLog) << "   factor := variable";  }
-   | functionReference                                            { LOG(ParserLog) << "   factor := functionReference";  }
-   | NOT factor                                                   { LOG(ParserLog) << "   factor := not factor";  }
-   | '(' expr ')'                                                 { LOG(ParserLog) << "   factor := ( expr )";  }
+   : INTEGER                          { LOG(ParserLog) << "   factor := int";  }
+   | STRING                           { LOG(ParserLog) << "   factor := string";  }
+   | variable                         { LOG(ParserLog) << "   factor := variable";  }
+   | functionReference                { LOG(ParserLog) << "   factor := functionReference";  }
+   | NOT factor                       { LOG(ParserLog) << "   factor := not factor";  }
+   | '(' expr ')'                     { LOG(ParserLog) << "   factor := ( expr )";  }
    ;
 functionReference
    : ID '(' actualParamList ')' 
    ;
 addOp
-   : '+'                                                              { LOG(ParserLog) << "   addOp := +";    }
-   | '-'                                                              { LOG(ParserLog) << "   addOp := *";    }
-   | OR                                                               { LOG(ParserLog) << "   addOp := OR";   }
+   : '+'                              { LOG(ParserLog) << "   addOp := +";    }
+   | '-'                              { LOG(ParserLog) << "   addOp := *";    }
+   | OR                               { LOG(ParserLog) << "   addOp := OR";   }
    ;
 mulOp
-   : '*'                                                              { LOG(ParserLog) << "   mulOp := *";    }
-   | DIV                                                              { LOG(ParserLog) << "   mulOp := div";  }
-   | MOD                                                              { LOG(ParserLog) << "   mulOp := %";    }
-   | AND                                                              { LOG(ParserLog) << "   mulOp := AND";  }
+   : '*'                              { LOG(ParserLog) << "   mulOp := *";    }
+   | DIV                              { LOG(ParserLog) << "   mulOp := div";  }
+   | MOD                              { LOG(ParserLog) << "   mulOp := %";    }
+   | AND                              { LOG(ParserLog) << "   mulOp := AND";  }
    ;
 relOp
-   : LT                                                               { LOG(ParserLog) << "   relOp := <";    }
-   | LE                                                               { LOG(ParserLog) << "   relOp := <=";   }
-   | GT                                                               { LOG(ParserLog) << "   relOp := >";    }
-   | GE                                                               { LOG(ParserLog) << "   relOp := >=";   }
-   | EQ                                                               { LOG(ParserLog) << "   relOp := =";    }
-   | NE                                                               { LOG(ParserLog) << "   relOp := <>";   }
+   : LT                               { LOG(ParserLog) << "   relOp := <";    }
+   | LE                               { LOG(ParserLog) << "   relOp := <=";   }
+   | GT                               { LOG(ParserLog) << "   relOp := >";    }
+   | GE                               { LOG(ParserLog) << "   relOp := >=";   }
+   | EQ                               { LOG(ParserLog) << "   relOp := =";    }
+   | NE                               { LOG(ParserLog) << "   relOp := <>";   }
    ;
     //===================================================================
 
 fieldList
-   : identifierList ':' type fieldListTail                { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
-                                                            rulesLog << "field_list" << endl; 
-							    setIdListToType( $<attr>1, $<lexeme>3 );
-							    cleanUpIdList( $<attr>1 );
-                                                          }
-   | /* empty */                                          { rulesLog << "field_list(empty)" << endl; }
+   : identifierList ':' type fieldListTail            { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
+                                                        rulesLog << "field_list" << endl; 
+							setIdListToType( $<attr>1, $<lexeme>3 );
+							cleanUpIdList( $<attr>1 ); }
+   | /* empty */                                      { rulesLog << "field_list(empty)" << endl; }
    ;
 fieldListTail
-   : fieldListTail ';' identifierList ':' type            { setIdListToType( $<attr>3, $<lexeme>5 );
-							    cleanUpIdList( $<attr>3 );
-                                                          }
+   : fieldListTail ';' identifierList ':' type        { setIdListToType( $<attr>3, $<lexeme>5 );
+					                cleanUpIdList( $<attr>3 ); }
    | /* empty */
    ;
 
     // NOTE: identifierList must be cleaned up after it's used.  
     // Call cleanUpIdList( $<attr>n ); which is equivalent to "delete $<attr>n.syn->strList;  delete $<attr>n.syn;"
 identifierList
-   : ID identifierListTail                                { LOG(ParserLog) << "   identifierList := ID identifierListTail"; 
-                                                            rulesLog << "identifier_list" << endl; 
-							    $<attr>$.syn = $<attr>2.syn;  // reuse existing YYSTYPE from list tail
-							    $<attr>$.syn->strList->push_front( std::string($<lexeme>1) );
-                                                          }
+   : ID identifierListTail                            { LOG(ParserLog) << "   identifierList := ID identifierListTail"; 
+                                                        rulesLog << "identifier_list" << endl; 
+							$<attr>$.syn = $<attr>2.syn;  // reuse existing YYSTYPE from list tail
+							$<attr>$.syn->strList->push_front( std::string($<lexeme>1) ); }
    ;
 identifierListTail
-    : identifierListTail ',' ID                           { $<attr>$.syn = $<attr>1.syn;                                   // reuse existing YYSTYPE from $1
-							    $<attr>$.syn->strList->push_front( std::string($<lexeme>3) );  // add new id to the list
-                                                          }
-    | /* empty */                                         { $<attr>$.syn = new attrib;
-                                                            $<attr>$.syn->strList = new std::list<std::string>();
-                                                          }
+    : identifierListTail ',' ID                       { $<attr>$.syn = $<attr>1.syn;                                    // reuse existing YYSTYPE from $1
+						        $<attr>$.syn->strList->push_front( std::string($<lexeme>3) ); } // add new id to the list
+    | /* empty */                                     { $<attr>$.syn = new attrib;
+                                                        $<attr>$.syn->strList = new std::list<std::string>(); }
     ;
 constant
-   : sign INTEGER                                         { LOG(ParserLog) << "   constant := sign int"; }
-   | INTEGER                                              { LOG(ParserLog) << "   constant := int"; }
+   : sign INTEGER                                     { LOG(ParserLog) << "   constant := sign int"; }
+   | INTEGER                                          { LOG(ParserLog) << "   constant := int"; }
    ;
 variable
-   : ID componentSelection                                { LOG(ParserLog) << "   variable := id componentSelection"; }
+   : ID componentSelection                            { LOG(ParserLog) << "   variable := id componentSelection"; }
    ;
 componentSelection
-   : componentSelection '.' ID                            { LOG(ParserLog) << "   componentSelection := . id componentSelection"; }
-   | componentSelection '[' expr ']'                      { LOG(ParserLog) << "   componentSelection := [ expr ] componentSelection"; }
+   : componentSelection '.' ID                        { LOG(ParserLog) << "   componentSelection := . id componentSelection"; }
+   | componentSelection '[' expr ']'                  { LOG(ParserLog) << "   componentSelection := [ expr ] componentSelection"; }
    | /* empty */ 
    ;
 sign : '+' | '-' ;
 
 type
-   : ID                                                       { LOG(ParserLog) << "   type := ID"; 
-                                                                rulesLog << "type_ID" << endl;
-								$<lexeme>$ = $1;
-                                                              }
-   | ARRAY '[' constant RANGE constant ']' OF type            { LOG(ParserLog) << "   type := ARRAY [ constant .. constant ] of type";
-                                                                rulesLog << "type_ARRAY" << endl;
-								$<lexeme>$ = "array";
-                                                              }
-   | RECORD fieldList END_TOKEN                               { LOG(ParserLog) << "   type := RECORD fieldList END";
-                                                                rulesLog << "type_RECORD" << endl;
-								$<lexeme>$ = "record";
-                                                              }
+   : ID                                               { LOG(ParserLog) << "   type := ID"; 
+                                                        rulesLog << "type_ID" << endl;
+							$<lexeme>$ = $1; }
+   | ARRAY '[' constant RANGE constant ']' OF type    { LOG(ParserLog) << "   type := ARRAY [ constant .. constant ] of type";
+                                                        rulesLog << "type_ARRAY" << endl;
+							$<lexeme>$ = "array"; }
+   | RECORD fieldList END_TOKEN                       { LOG(ParserLog) << "   type := RECORD fieldList END";
+                                                        rulesLog << "type_RECORD" << endl;
+							$<lexeme>$ = "record"; }
    ;
 
 resultType
-   : ID                                                       { LOG(ParserLog) << "   resultType := id"; }
+   : ID                                               { LOG(ParserLog) << "   resultType := id"; }
    ;
 %%
 
