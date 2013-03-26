@@ -80,7 +80,7 @@ public:
   };
 
   typedef std::map<Id_type, Sym_info, Id_less>              Symbol_map_type;
-  typedef std::vector<typename Symbol_map_type::iterator>   Address_map_type;
+  typedef std::vector<Symbol_map_type::iterator>   Address_map_type;
 
   static std::vector<Id_type> const PREDEFINED_TYPES;
   static char const* const NIL_TYPE;

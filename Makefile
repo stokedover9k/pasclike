@@ -1,3 +1,6 @@
+# These files will be packaged on call to target 'zip'
+PACKAGE_FILES = loglib.h main-parser.cpp main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README symbol-table.cpp symbol-table.h
+
 LANG_NAME=pasclike
 LEXER_EXECUTABLE=scanner-${LANG_NAME}
 PARSER_EXECUTABLE=parser-${LANG_NAME}
@@ -39,6 +42,8 @@ lex.yy.c ${SCANNER_HEADER}: ${LANG_NAME}.l ${LANG_NAME}.tab.h
 
 symbol-table.o: symbol-table.h symbol-table.cpp
 	g++ $(CFLAGS) -c symbol-table.cpp
+zip: 
+	zip pasclike.zip $(PACKAGE_FILES)
 
 clean:
 	rm -fv *.o ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h lex.yy.c ${SCANNER_HEADER}

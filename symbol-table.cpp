@@ -4,7 +4,7 @@
 
 char const* const Sym_table::NIL_TYPE = "nil";
 
-std::vector<typename Sym_table::Id_type> const Sym_table::PREDEFINED_TYPES = 
+std::vector<Sym_table::Id_type> const Sym_table::PREDEFINED_TYPES = 
   { "array", "record", Sym_table::NIL_TYPE };
 
 Sym_table::Index_type const Sym_table::NIL_TYPE_INDEX = 
@@ -15,7 +15,7 @@ Sym_table::Index_type const Sym_table::NIL_TYPE_INDEX =
 Sym_table::Sym_table()
 {
   for( int i = 0; i < PREDEFINED_TYPES.size(); ++i ) {
-    std::pair<typename Symbol_map_type::iterator, bool> p = 
+    std::pair<Symbol_map_type::iterator, bool> p = 
       symbol_map_.insert( std::make_pair(PREDEFINED_TYPES[i], 
 					 Sym_info(i, NIL_TYPE_INDEX)) );
     if( !p.second ) throw "could not add a predefined type to symbol table";
@@ -26,7 +26,7 @@ Sym_table::Sym_table()
 Sym_table::Index_type Sym_table::put( Id_type const& symbol )
 {
   Index_type new_index = symbol_map_.size();
-  std::pair<typename Symbol_map_type::iterator, bool> p = 
+  std::pair<Symbol_map_type::iterator, bool> p = 
     symbol_map_.insert( std::make_pair(symbol,
 				       Sym_info(new_index, NIL_TYPE_INDEX)) );
   if( p.second ) {  // if inserted
@@ -77,7 +77,7 @@ Sym_table::Index_type Sym_table::set_routine_type( Index_type symbol_index, int 
 std::ostream& operator<< (std::ostream& os, Sym_table const& sym_table)
 {
   for( int i = Sym_table::NIL_TYPE_INDEX + 1; i < sym_table.address_map_.size(); ++i ) {
-    typename Sym_table::Symbol_map_type::const_iterator itr = sym_table.address_map_[i];
+    Sym_table::Symbol_map_type::const_iterator itr = sym_table.address_map_[i];
     Sym_table::Index_type  sym_index = itr->second.sym_index;
     Sym_table::Index_type type_index = itr->second.type_index;
 

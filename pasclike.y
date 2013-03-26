@@ -32,8 +32,15 @@ int yyerror( const char *p ) { LOG(logERROR) << p; }
 
  void setIdListToType( id_list_attributes const& id_list, symbol_attributes const& type )
  {
+   for( std::list<Sym_table::Index_type>::const_iterator itr = 
+	  id_list.symbols->begin();
+	itr != id_list.symbols->end();
+	itr++ )
+     sym_table.set_type( *itr, type.id );
+   /*
    for( Sym_table::Index_type const& id : *id_list.symbols )
      sym_table.set_type( id, type.id );
+   */
  }
 
  void cleanUpIdList( id_list_attributes const& id_list )
