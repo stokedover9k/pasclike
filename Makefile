@@ -43,7 +43,10 @@ lex.yy.c ${SCANNER_HEADER}: ${LANG_NAME}.l ${LANG_NAME}.tab.h
 symbol-table.o: symbol-table.h symbol-table.cpp
 	g++ $(CFLAGS) -c symbol-table.cpp
 zip: 
-	zip pasclike.zip $(PACKAGE_FILES)
+	mkdir parser-skobov-yury
+	cp ${PACKAGE_FILES} parser-skobov-yury/
+	zip pasclike.zip parser-skobov-yury/*
+	rm -rf parser-skobov-yury
 
 clean:
 	rm -fv *.o ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h lex.yy.c ${SCANNER_HEADER}
