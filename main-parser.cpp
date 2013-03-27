@@ -17,11 +17,7 @@ using std::endl;
 int main( int argc, char* argv[] )
 //=================================================
 {
-  Output2FILE::Stream() = stdout;
-
-  // redirect output: rule logging
-  std::ofstream rulesOutFile("rule.out");
-  //rulesLog.rdbuf(rulesOutFile.rdbuf());
+  Output2FILE::Stream() = fopen( "rules.out", "w" );
 
   // Initialize INPUT:
   // - if an argument is provided, it is expected to be the input file's name.
@@ -45,7 +41,6 @@ int main( int argc, char* argv[] )
   std::filebuf fb;
   fb.open("symtable.out", std::ios::out);
   //---- uncomment one ---------------
-  //std::ostream symOut(cout.rdbuf());
   std::ostream symOut(&fb);
   //----------------------------------
   symOut << sym_table << std::flush;

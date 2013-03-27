@@ -113,7 +113,6 @@ program
      opt_SubprogDecls
      compoundStmt '.'
                         { LOG(ParserLog) << "   Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .";
-			  rulesLog << "program" << endl;
 			}
         ;
     //============ TYPE DEFINITIONS =====================================
@@ -123,16 +122,13 @@ opt_TypeDefs
    ;
 typeDef
    : ID EQ type                        { LOG(ParserLog) << "   typeDef := ID = type ;";
-                                         sym_table.set_type( $1.id, $3.id );
-					 rulesLog << "type_definition" << endl; }
+                                         sym_table.set_type( $1.id, $3.id ); }
    ;
 typeDefs
-   : TYPE typeDef ';' typeDefList      { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; 
-                                         rulesLog << "type_definitions" << endl; }
+   : TYPE typeDef ';' typeDefList      { LOG(ParserLog) << "   typeDefs := TYPE typeDef ; typeDefList"; }
    ;
 typeDefList
-   : typeDefList typeDef ';'           { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; 
-                                         rulesLog << "type_definitions_more" << endl; }
+   : typeDefList typeDef ';'           { LOG(ParserLog) << "   typeDefList := typeDefList typeDef ;"; }
    | /* empty */
    ;
     //===================================================================
@@ -145,12 +141,11 @@ varDecls
    : VAR varDecl ';' varDeclList       { LOG(ParserLog) << "   varDecls := VAR varDecl ; varDeclList"; }
    ;
 varDeclList
-   : varDeclList varDecl ';'           { rulesLog << "variable_declarations" << endl; }
+   : varDeclList varDecl ';'
    | /* empty */
    ;
 varDecl
    : identifierList ':' type           { LOG(ParserLog) << "   varDecl := identifierList : type";
-                                         rulesLog << "variable_declaration" << endl;
 					 setIdListToType( $1, $3 );
 					 cleanUpIdList( $1 ); }
    ;
@@ -310,10 +305,9 @@ relOp
 
 fieldList
    : identifierList ':' type fieldListTail            { LOG(ParserLog) << "   filedList := identifierList : type filedListTail";
-                                                        rulesLog << "field_list" << endl; 
 							setIdListToType( $1, $3 );
 							cleanUpIdList( $1 ); }
-   | /* empty */                                      { rulesLog << "field_list(empty)" << endl; }
+   | /* empty */
    ;
 fieldListTail
    : fieldListTail ';' identifierList ':' type        { setIdListToType( $3, $5 );
@@ -325,7 +319,6 @@ fieldListTail
     // Call cleanUpIdList( $n ); which is equivalent to "delete $<id_list>n.symbols;"
 identifierList
    : ID identifierListTail                            { LOG(ParserLog) << "   identifierList := ID identifierListTail"; 
-                                                        rulesLog << "identifier_list" << endl; 
 							$$.symbols = $2.symbols;                                 // reuse existing list of ids
 							$$.symbols->push_front( $1.id ); }
    ;
