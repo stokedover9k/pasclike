@@ -1,6 +1,5 @@
 #include "env.h"
 #include "scope_tree.h"
-#include "array_types.h"
 #include <iostream>
 
 std::ostream& operator<< (std::ostream& os, Symbol_DB::Sym_info const& info)
@@ -38,5 +37,7 @@ int main(int argc, char* argv[])
   cout << *info << endl;
 
   symtable.exit_current_scope();
+
+
   
 }
