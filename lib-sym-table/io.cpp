@@ -5,8 +5,17 @@
 #include "scope.h"
 #include "symtable.h"
 
+#include <list>
+
+#include <iostream>
+
 namespace symdb
 {
+
+  void Lit::send_to( std::ostream& os ) const {
+    os << literal << " of type ";
+    if( type == NULL )  os << "N/A";
+    else                type->send_to( os ); }
 
   void Type::send_to( std::ostream& os ) const {
     os << type_tag_to_string( get_type_tag() ); }
@@ -63,18 +72,45 @@ namespace symdb
     for( i++; i != symbols.end(); i++ )
       os << delim << i->second; }
   
+  std::ostream& operator<< (std::ostream& os, Sym const& sym) {
+    sym.send_to(os);
+    return os; }
+
   std::ostream& operator<< (std::ostream& os, Sym_entry const& entry) {
     os << (sym_tag_to_string( entry.tag )) << ": ";
     if( entry.sym == NULL )  os << "N/A";
     else                     entry.sym->send_to(os);
     return os; }
   
-  std::ostream& operator<< (std::ostream& os, Sym const& sym) {
-    sym.send_to(os);
-    return os; }
-
   std::ostream& operator<< (std::ostream& os, Sym_scope const& scope) {
     scope.send_to( os, std::string("\n") );
+    return os; }
+
+  std::ostream& operator<< (std::ostream& os, Scope_tree const& table) {
+    std::list<Sym_scope const*> q;
+    q.push_back( table.global_scope );
+    for( std::list<Sym_scope const*>::const_iterator i(q.begin());
+	 i != q.end(); i++ ) {
+      os << "--- scope at: " << *i << '\n';
+      typename Sym_scope::Sym_map::const_iterator e_itr( (*i)->symbols.begin() );
+      for( ; e_itr != (*i)->symbols.end(); e_itr++ ) {
+	os << e_itr->second << "\n";
+	Sym_tag tag = e_itr->second.tag;
+	if( tag == PROC_TAG ) 
+	  {
+	    q.push_back(dynamic_cast<Proc const*>(e_itr->second.sym)->scope);
+	  } 
+	else if( tag == FUNC_TAG ) 
+	  {
+	    q.push_back(dynamic_cast<Func const*>(e_itr->second.sym)->scope);
+	  } 
+	else if(tag == TYPE_TAG &&
+		dynamic_cast<Type const*>(e_itr->second.sym)->is_record()) 
+	  {
+	    Type const *t =
+	      dynamic_cast<Type const*>(e_itr->second.sym)->get_type();
+	    q.push_back(dynamic_cast<Record_type const*>(t)->scope);
+	  } } }
     return os; }
 
 }; // end symdb

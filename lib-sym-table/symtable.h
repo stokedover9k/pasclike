@@ -9,6 +9,7 @@ namespace symdb
 
   struct Sym_table;
   struct Scope_tree;
+  
 
   //========================//
   struct Scope_tree {       //
@@ -19,6 +20,8 @@ namespace symdb
     Sym_scope * pop_scope();
     
     Scope_tree( Sym_scope * global_scope );
+
+    friend std::ostream& operator<< (std::ostream& os, Scope_tree const&);
 
   protected:
     Sym_scope * set_current_scope( Sym_scope * );

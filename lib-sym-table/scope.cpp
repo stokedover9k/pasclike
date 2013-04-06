@@ -37,6 +37,7 @@ namespace symdb
 
   typename std::string Sym_string_hasher::gen_key( Sym const& sym ) const {
     switch( sym.get_entry_tag() ) {
+    case  LIT_TAG:  return dynamic_cast< Lit const&>(sym).literal;
     case TYPE_TAG:  return dynamic_cast<Type const&>(sym).get_type_name();
     case  VAR_TAG:  return dynamic_cast< Var const&>(sym).name;
     case PROC_TAG:  return dynamic_cast<Proc const&>(sym).name;

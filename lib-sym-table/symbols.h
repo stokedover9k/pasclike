@@ -9,12 +9,13 @@
 
 namespace symdb
 {
-  enum Sym_tag { TYPE_TAG, VAR_TAG, PROC_TAG, FUNC_TAG };
+  enum Sym_tag { LIT_TAG, TYPE_TAG, VAR_TAG, PROC_TAG, FUNC_TAG };
 
   struct Sym;
   struct Sym_scope;
 
   struct Sym;        // parent of the following types:
+  struct Lit;
   struct Type;
   struct Var;
   struct Proc;
@@ -36,6 +37,16 @@ namespace symdb
   ////---- Types inherited from Sym ----////
   ////----------------------------------////
 
+  //======================================//
+  struct Lit : public Sym {               //
+  //======================================//
+    std::string literal;
+    Type *type;
+
+    virtual Sym_tag get_entry_tag() const;
+    Lit(std::string const& literal);
+    virtual void send_to( std::ostream& ) const; };
+  
   //======================================//
   struct Type : public Sym {              //
   //======================================//

@@ -12,7 +12,7 @@ namespace symdb
   
   struct Sym_entry;
   struct Sym_scope;
-  struct Scope_Tree;
+  struct Scope_tree;
   struct Sym_table;
 
   //==============================//
@@ -72,6 +72,8 @@ namespace symdb
     bool add_success() const;
     Sym_scope * get_parent_scope() const;
     void send_to( std::ostream&, std::string const& delim ) const;
+
+    friend std::ostream& operator<< (std::ostream&, Scope_tree const&);
 
   private:
     Sym_map symbols;

@@ -3,6 +3,7 @@
 namespace symdb
 {
 
+  Sym_tag  Lit::get_entry_tag() const { return  LIT_TAG; }
   Sym_tag Type::get_entry_tag() const { return TYPE_TAG; }
   Sym_tag  Var::get_entry_tag() const { return  VAR_TAG; }
   Sym_tag Proc::get_entry_tag() const { return PROC_TAG; }
@@ -23,10 +24,14 @@ namespace symdb
 
   std::string Type::get_type_name() const { 
     return std::string( type_tag_to_string(get_type_tag()) ); }
+
   std::string Named_type::get_type_name() const {
     return name; }
 
 
+
+  Lit::Lit( std::string const& _literal ) :
+    literal(_literal), type(NULL) { }
 
   Var::Var( std::string const& _name ) :
     name(_name), type(NULL) { }
@@ -55,6 +60,7 @@ namespace symdb
 
   char const * sym_tag_to_string( Sym_tag tag ) {
     switch( tag ) {
+    case  LIT_TAG:  return "LIT";
     case TYPE_TAG:  return "TYPE";
     case  VAR_TAG:  return "VAR";
     case PROC_TAG:  return "PROC";

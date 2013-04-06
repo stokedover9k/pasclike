@@ -11,7 +11,8 @@ int main( int argc, char* argv[] )
   
   Sym *sym = NULL;
   Type *type = NULL;
-  
+
+  Lit *lit;
   Var *var;
   Proc *proc;
   Func *func;
@@ -87,8 +88,56 @@ int main( int argc, char* argv[] )
        << (scope->get_sym( var ) == entry ? "check" : "fail") << endl;
 
   //---- Scope ----//
-  cout << "----- Scope -----"
+  cout << "----- Scope -----" << '\n'
        << *scope << endl;
+
+  //---- Sym Table ----//
+  Sym_table tbl;
+  cout << "----- Sym Table -----" << '\n'
+       << tbl << endl;
+
+  tbl.put( int_type );
+  tbl.put( bool_type );
+  tbl.put( string_type );
+
+  lit = new Lit("true");
+  lit->type = bool_type;
+  tbl.put( lit );
+
+  lit = new Lit("false");
+  lit->type = bool_type;
+  tbl.put( lit );
+
+  var = new Var("stuff");
+  tbl.put( var );
+  record_type = new Record_type();
+  record_type->scope = tbl.push_scope( new Sym_scope() );
+  var->type = record_type;
+  { // record scope
+    Var *v1 = new Var("a");
+    v1->type = int_type;
+    tbl.put( v1 );
+    
+    v1 = new Var("b");
+    v1->type = new String_type();
+    tbl.put( v1 );
+  }
+  tbl.pop_scope();
+
+  named_type = new Named_type("person");
+  tbl.put( named_type );
+  record_type = new Record_type();
+  named_type->refers_to = record_type;
+  record_type->scope = tbl.push_scope( new Sym_scope() );
+  var = new Var("age");
+  var->type = int_type;
+  tbl.put( var );
+  var = new Var("name");
+  var->type = string_type;
+  tbl.put( var );
+  tbl.pop_scope();
+  
+  cout << tbl << endl;
 
   return 0;
 }
