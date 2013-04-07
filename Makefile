@@ -1,52 +1,58 @@
-# These files will be packaged on call to target 'zip'
-PACKAGE_FILES = loglib.h main-parser.cpp main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README symbol-table.cpp symbol-table.h
 
-LANG_NAME=pasclike
-LEXER_EXECUTABLE=scanner-${LANG_NAME}
-PARSER_EXECUTABLE=parser-${LANG_NAME}
-SCANNER_HEADER=${LANG_NAME}-scanner.h
+lang=pasclike
+parser_EXECUTABLE = parser-${lang}
+parser_INCLUDE_DIRS := lib-sym-table
+parser_LIB_DIRS := lib-sym-table
+parser_LIBS := symdb
+scanner_HEADER = lex.yy.h
 
-SCANNER_LOG_LVL_FOR_PARSER=logDEBUG1
-SCANNER_LOG_LVL_FOR_SCANNER=logDEBUG4
+CXXFLAGS += $(foreach includedir,$(parser_INCLUDE_DIRS),-I$(includedir))
+CXXFLAGS += -std=c++0x
+CXXFLAGS += -DFILELOG_MAX_LEVEL=$(FILELOG_MAX_LVL) -DSCANNER_LOG_LVL=$(FILELOG_MAX_LVL) -DPARSER_LOG_LVL=$(FILELOG_MAX_LVL)
+LDFLAGS += $(foreach librarydir,$(parser_LIB_DIRS),-L$(librarydir))
+LDFLAGS += $(foreach library,$(parser_LIBS),-l$(library))
+
 PARSER_LOG_LVL_FOR_PARSER=logINFO
 PARSER_LOG_LVL_FOR_SCANNER=logDEBUG4
 
-FILELOG_MAX_LVL_DEBUG=logDEBUG2
-FILELOG_MAX_LVL_DEFAULT=logINFO
+FILELOG_MAX_LVL=logDEBUG2
 
-######## choose one of the following ########
-# FILELOG_MAX_LVL=${FILELOG_MAX_LVL_DEBUG}
-FILELOG_MAX_LVL=${FILELOG_MAX_LVL_DEFAULT}
-############################################
+parser_C_SRCS             := 
+parser_CXX_SRCS           := parser-settings.cpp main-parser.cpp symbol-table.cpp
+parser_GENERATED_C_SRCS   := 
+parser_GENERATED_CXX_SRCS := pasclike.tab.cpp lex.yy.cpp
 
-CFLAGS = -DFILELOG_MAX_LEVEL=$(FILELOG_MAX_LVL) -std=c++0x
+parser_C_OBJS   := ${parser_C_SRCS:.c=.o} ${parser_GENERATED_C_SRCS:.c=.o}
+parser_CXX_OBJS := ${parser_CXX_SRCS:.cpp=.o} ${parser_GENERATED_CXX_SRCS:.cpp=.o}
+parser_OBJS     := ${parser_C_OBJS} ${parser_CXX_OBJS}
 
-${PARSER_EXECUTABLE}: CFLAGS += \
- -DSCANNER_LOG_LVL=${SCANNER_LOG_LVL_FOR_PARSER} \
- -DPARSER_LOG_LVL=${PARSER_LOG_LVL_FOR_PARSER}
-${LEXER_EXECUTABLE}: CFLAGS += \
- -DSCANNER_LOG_LVL=$(SCANNER_LOG_LVL_FOR_SCANNER) \
- -DPARSER_LOG_LVL=$(PARSER_LOG_LVL_FOR_SCANNER)
+.PHONY: all clean libs
 
-${PARSER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h parser-settings.h parser-settings.cpp main-parser.cpp symbol-table.o
-	g++ ${CFLAGS} ${LANG_NAME}.tab.c lex.yy.c parser-settings.cpp main-parser.cpp symbol-table.o -lfl -o ${PARSER_EXECUTABLE} 
+all: ${parser_EXECUTABLE} 
 
-${LEXER_EXECUTABLE}: lex.yy.c ${LANG_NAME}.tab.h ${SCANNER_HEADER} main-scanner.cpp symbol-table.o
-	g++ $(CFLAGS) lex.yy.c main-scanner.cpp symbol-table.o -o ${LEXER_EXECUTABLE} 
+${parser_EXECUTABLE}: ${parser_OBJS} libs
+	$(LINK.cc) $(parser_OBJS) -lfl -o $(parser_EXECUTABLE)
 
-${LANG_NAME}.tab.c ${LANG_NAME}.tab.h: ${LANG_NAME}.y parser-settings.h 
-	bison -d ${LANG_NAME}.y
+libs:
+	$(MAKE) -C lib-sym-table
 
-lex.yy.c ${SCANNER_HEADER}: ${LANG_NAME}.l ${LANG_NAME}.tab.h
-	flex --header-file=${SCANNER_HEADER} ${LANG_NAME}.l
+main-parser.o : pasclike.tab.h
 
-symbol-table.o: symbol-table.h symbol-table.cpp
-	g++ $(CFLAGS) -c symbol-table.cpp
-zip: 
-	mkdir parser-skobov-yury
-	cp ${PACKAGE_FILES} parser-skobov-yury/
-	zip pasclike.zip parser-skobov-yury/*
-	rm -rf parser-skobov-yury
+pasclike.tab.cpp pasclike.tab.h: pasclike.y parser-settings.h 
+	bison --output=pasclike.tab.cpp -d ${lang}.y
+	mv pasclike.tab.hpp pasclike.tab.h
+
+lex.yy.cpp lex.yy.h: pasclike.l pasclike.tab.h
+	flex --outfile=lex.yy.cpp --header-file=lex.yy.h pasclike.l
 
 clean:
-	rm -fv *.o ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${LANG_NAME}.tab.c ${LANG_NAME}.tab.h lex.yy.c ${SCANNER_HEADER}
+	rm -fv ${parser_OBJS} ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${lang}.tab.cpp ${lang}.tab.h lex.yy.cpp lex.yy.h ${SCANNER_HEADER}
+
+main-parser.h:
+	#imagining main-parser.h
+
+define OBJECT_DEPENDS_ON_CORRESPONDING_HEADER
+        $(1) : ${1:.o=.h}
+endef
+
+$(foreach object_file,$(parser_OBJS),$(eval $(call OBJECT_DEPENDS_ON_CORRESPONDING_HEADER,$(object_file))))

@@ -1,13 +1,4 @@
-#ifndef __SYMBOL_IO_CPP__
-#define __SYMBOL_IO_CPP__
-
-#include "symbols.h"
-#include "scope.h"
-#include "symtable.h"
-
-#include <list>
-
-#include <iostream>
+#include "sym_io.h"
 
 namespace symdb
 {
@@ -114,5 +105,3 @@ namespace symdb
     return os; }
 
 }; // end symdb
-
-#endif//__SYMBOL_IO_CPP__

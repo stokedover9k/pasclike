@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <list>
+#include "symtable.h"
 
 using std::cout;
 using std::endl;
