@@ -1,52 +1,43 @@
 Author: Yuriy Skobov
 
-This package contains a parser and a lexical analyzer for a Pascal-like language.
+This package contains a parser with a type checking sysmtem for a Pascal-like language.
 
 NOTE: The code was tested on energon1.
 
 =======================================
 =========      COMPILE      ===========
 =======================================
-Executing 'make' will compile the parser by default.
-
-* compile parser: 'make parser-pasclike'
-* compile scanner: 'make scanner-pasclike'
+Executing 'make' will compile the parser.
 
 ----- Parser -----
-The parser is compiled by executing 'make parser-pasclike'. An executable named
+
+The parser is compiled by executing 'make'. An executable named
 "parser-pasclike" will be created. This program takes the input program as its
 first argument. If no argument is given, the parser reads the program from standard
 input. The parser will produce a file "symtable.out" with the printout of the symbol
-table of the parsed program.
-
------ Scanner ----
-the scanner is compiled by executing 'make scanner-pasclike'. An executable named
-"scanner-pasclike" will be created. This program takes the name of the file containing
-the input data (the program to parse) as its first argument and reports to standard
-output. If no file name is provided, the scanner reads from standard input.
+table of the parsed program. It will also produce a file "rules.out" with the 
+reductions taken during the parse. Type error messages will be printed to standard
+out.
 
 ========================================
 ===========     RUN     ================
 ========================================
-Both the scanner and the parser take as their first arguments the name of the program
-to be processed. If no such file is provided, they read from the standard input.
+The parser takes as its first arguments the name of the program to be processed. 
+If no such file is provided, the parser read from the standard input.
 
 * run  parser: ./parser-pasclike   test-program-data
            or: ./parser-pasclike < test-program-date
-* run scanner: ./scanner-pasclike  test-program-data
-           or: ./scanner-pasclike < test-program-data
 
+Running the parser will produce the following files:
 
+* symtable.out
+* rules.out
 
------ Implementation Notes -----
-* Logging:
-  pasclike.l contains logging code.  This logging is currently disabled
-  and can be ignored.  To enable, run make with 
-    CFLAGS=-DFILELOG_MAX_LEVEL=logDEBUG4
-  The logging library is a slightly modified library taken from Dr. Dobbs
-  website.
-
-* Output Organization:
-  Currently, the scanner's output is produced in main.cpp (not the Flex 
-  file pasclike.l) based on the tokens returned by yylex().
+- symtable.out contains the symbol table created during the parse. Scopes are
+  created per function or record, and are printed with a unique id (currently, 
+  address) at the top. Following each scope id are symbols with their symbol-types
+  and names defined in that scope.
   
+- rules.out contains the reductions taken during the parse of the program.
+
+- Additionally, type error messages are printed to standard out.

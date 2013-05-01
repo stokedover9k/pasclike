@@ -16,7 +16,6 @@
 TLogLevel ScannerLog = SCANNER_LOG_LVL;
 //---------------------------------
 //------- symbol table ------------
-#include "symbol-table.h"
 //---------------------------------
 
 #define YY_DECL extern "C" int yylex(void)
@@ -52,9 +51,10 @@ RELOP         >=?|<[>=]?|=
 
   /************* Numbers **********************/
 
-{INTEGER}      { LOG(ScannerLog) << "INTEGER    " << yytext;  yylval.lexeme = lexemeDup();  return INTEGER;   }
-{DECIMAL}      { LOG(ScannerLog) << "DECIMAL    " << yytext;  yylval.lexeme = lexemeDup();  return DECIMAL;   }
-{EXPONENTIAL}  { LOG(ScannerLog) << "EXPNUMBER  " << yytext;  yylval.lexeme = lexemeDup();  return EXPNUMBER; }
+  /* backup: lexeme = lexemeDup(); //*/
+{INTEGER}      { LOG(ScannerLog) << "INTEGER    " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Int_type();      return INTEGER;   }
+{DECIMAL}      { LOG(ScannerLog) << "DECIMAL    " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Invalid_type();  return DECIMAL;   }
+{EXPONENTIAL}  { LOG(ScannerLog) << "EXPNUMBER  " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Invalid_type();  return EXPNUMBER; }
 
   /************* Relational Operators *********/
 
@@ -110,11 +110,13 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
   /************* Strings and ID's *************/
 
 \"[^"\n\r]*\"                  { LOG(ScannerLog) << "STRING     " << yytext;
-                                 yylval.lexeme = lexemeDup();
+                                 //yylval.lexeme = lexemeDup();
+                                 yylval.lit = new symdb::Lit(yytext);
+                                 yylval.lit->type = new symdb::String_type();
                                  return STRING;                             }
 {LETTER}({LETTER}|{DIGIT}|_)*  { LOG(ScannerLog) << "IDENTIFIER " << yytext;
-                                 int sym_addr = sym_table.put( std::string(yytext) );
-                                 yylval.symbol.id = sym_addr;
+                                 //int sym_addr = sym_table.put( std::string(yytext) );
+                                 yylval.lexeme = lexemeDup();
                                  return ID;                                 }
 
   /************* Comments *********************/

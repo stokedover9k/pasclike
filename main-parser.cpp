@@ -5,7 +5,7 @@
 #include "pasclike.tab.h"
 #include "loglib.h"
 #include "parser-settings.h"
-#include "symbol-table.h"
+#include "symtable.h"
 
 extern int yyparse(void);
 extern FILE *yyin;
@@ -13,11 +13,30 @@ extern FILE *yyin;
 using std::cout;
 using std::endl;
 
+extern symdb::Sym_table symtable;
+
+void init_symtable() 
+{
+  using namespace symdb;
+
+  Type *bool_type = new Bool_type();
+  symtable.put( bool_type );
+  symtable.put( new Int_type() );
+  symtable.put( new String_type() );
+  
+  Var *var = new Var("true", bool_type);
+  symtable.put( var );
+  var = new Var("false", bool_type);
+  symtable.put( var );
+}
+
 //=================================================
 int main( int argc, char* argv[] )
 //=================================================
 {
   Output2FILE::Stream() = fopen( "rules.out", "w" );
+
+  init_symtable();
 
   // Initialize INPUT:
   // - if an argument is provided, it is expected to be the input file's name.
@@ -43,6 +62,7 @@ int main( int argc, char* argv[] )
   //---- uncomment one ---------------
   std::ostream symOut(&fb);
   //----------------------------------
-  symOut << sym_table << std::flush;
+  std::cout << "PRINTING TABLE..." << std::endl;
+  symOut << symtable << std::flush;
   return 0;
 }

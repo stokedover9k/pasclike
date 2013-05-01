@@ -33,14 +33,11 @@ namespace symdb
       if( *i == NULL )  os << "N/A";
       else              (*i)->send_to( os ); }
     os << ") returning ";
-    if( return_type == NULL )  os << "N/A";
-    else                       return_type->send_to( os ); }
+    return_type->send_to( os ); }
 
   void Array_type::send_to( std::ostream& os ) const {
     os << "ARRAY";
-    for( std::list<Range>::const_iterator r( ranges.begin() );
-	 r != ranges.end(); r++ ) {
-      os << "[" << r->first << ".." << r->second << "]"; }
+    os << "[" << range.first << ".." << range.second << "]";
     os << " of ";
     base_type->send_to( os ); }
 
@@ -68,7 +65,7 @@ namespace symdb
     return os; }
 
   std::ostream& operator<< (std::ostream& os, Sym_entry const& entry) {
-    os << (sym_tag_to_string( entry.tag )) << ": ";
+    os << (sym_tag_to_string( entry.tag )) << " (" << entry.offset << "): ";
     if( entry.sym == NULL )  os << "N/A";
     else                     entry.sym->send_to(os);
     return os; }
@@ -83,24 +80,31 @@ namespace symdb
     for( std::list<Sym_scope const*>::const_iterator i(q.begin());
 	 i != q.end(); i++ ) {
       os << "--- scope at: " << *i << '\n';
-      typename Sym_scope::Sym_map::const_iterator e_itr( (*i)->symbols.begin() );
+      Sym_scope::Sym_map::const_iterator e_itr( (*i)->symbols.begin() );
       for( ; e_itr != (*i)->symbols.end(); e_itr++ ) {
 	os << e_itr->second << "\n";
 	Sym_tag tag = e_itr->second.tag;
 	if( tag == PROC_TAG ) 
 	  {
-	    q.push_back(dynamic_cast<Proc const*>(e_itr->second.sym)->scope);
+	    Proc const *proc = dynamic_cast<Proc const*>(e_itr->second.sym);
+	    if( proc->scope != *i )
+	      q.push_back(proc->scope);
 	  } 
 	else if( tag == FUNC_TAG ) 
 	  {
-	    q.push_back(dynamic_cast<Func const*>(e_itr->second.sym)->scope);
+	    Func const *func = dynamic_cast<Func const*>(e_itr->second.sym);
+	    if( func->scope != *i )
+	      q.push_back(func->scope);
 	  } 
 	else if(tag == TYPE_TAG &&
 		dynamic_cast<Type const*>(e_itr->second.sym)->is_record()) 
 	  {
 	    Type const *t =
 	      dynamic_cast<Type const*>(e_itr->second.sym)->get_type();
-	    q.push_back(dynamic_cast<Record_type const*>(t)->scope);
+	    Record_type const *r =
+	      dynamic_cast<Record_type const*>(t);
+	    if( r->scope != *i )
+	      q.push_back(r->scope);
 	  } } }
     return os; }
 

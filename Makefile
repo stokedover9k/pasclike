@@ -8,17 +8,17 @@ scanner_HEADER = lex.yy.h
 
 CXXFLAGS += $(foreach includedir,$(parser_INCLUDE_DIRS),-I$(includedir))
 CXXFLAGS += -std=c++0x
-CXXFLAGS += -DFILELOG_MAX_LEVEL=$(FILELOG_MAX_LVL) -DSCANNER_LOG_LVL=$(FILELOG_MAX_LVL) -DPARSER_LOG_LVL=$(FILELOG_MAX_LVL)
+CXXFLAGS += -DFILELOG_MAX_LEVEL=$(FILELOG_MAX_LVL) -DSCANNER_LOG_LVL=$(SCANNER_LOG_LVL_FOR_PARSER) -DPARSER_LOG_LVL=$(PARSER_LOG_LVL_FOR_PARSER)
 LDFLAGS += $(foreach librarydir,$(parser_LIB_DIRS),-L$(librarydir))
 LDFLAGS += $(foreach library,$(parser_LIBS),-l$(library))
 
 PARSER_LOG_LVL_FOR_PARSER=logINFO
-PARSER_LOG_LVL_FOR_SCANNER=logDEBUG4
+SCANNER_LOG_LVL_FOR_PARSER=logDEBUG2
 
 FILELOG_MAX_LVL=logDEBUG2
 
 parser_C_SRCS             := 
-parser_CXX_SRCS           := parser-settings.cpp main-parser.cpp symbol-table.cpp
+parser_CXX_SRCS           := parser-settings.cpp main-parser.cpp
 parser_GENERATED_C_SRCS   := 
 parser_GENERATED_CXX_SRCS := pasclike.tab.cpp lex.yy.cpp
 
@@ -31,7 +31,7 @@ parser_OBJS     := ${parser_C_OBJS} ${parser_CXX_OBJS}
 all: ${parser_EXECUTABLE} 
 
 ${parser_EXECUTABLE}: ${parser_OBJS} libs
-	$(LINK.cc) $(parser_OBJS) -lfl -o $(parser_EXECUTABLE)
+	$(LINK.cc) $(parser_OBJS) -lfl -o $(parser_EXECUTABLE) $(LDFLAGS)
 
 libs:
 	$(MAKE) -C lib-sym-table
@@ -50,6 +50,9 @@ clean:
 
 main-parser.h:
 	#imagining main-parser.h
+
+zip:
+	zip parser.zip lib-sym-table/* loglib.h main-parser.cpp main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README scope_tree.h type_tests/*
 
 define OBJECT_DEPENDS_ON_CORRESPONDING_HEADER
         $(1) : ${1:.o=.h}

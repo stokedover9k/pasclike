@@ -44,8 +44,10 @@ namespace symdb
     Sym_entry * entry = NULL;
     for( Sym_scope * scope = get_current_scope();
 	 entry == NULL && scope != NULL;
-	 scope = scope->get_parent_scope() )
+	 scope = scope->get_parent_scope() ) {
+      //std::cout << "searching for " << *sym << " in " << scope << std::endl;
       entry = scope->get_sym( sym );
+    }
     return entry; }
 
   Sym_entry * Sym_table::put( Sym * sym ) {

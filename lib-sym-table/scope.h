@@ -21,9 +21,10 @@ namespace symdb
     Sym_tag tag;
     Sym *sym;
     Sym_scope *scope;
+    int offset;
 
     // throws std::invalid_argument if sym is NULL
-    Sym_entry( Sym* sym, Sym_scope* = NULL );
+    Sym_entry( Sym* sym, Sym_scope* = NULL, int offset = -1 );
   };
 
   //==============================//
@@ -59,9 +60,9 @@ namespace symdb
     
     typedef Sym_string_hasher SH;
 
-    typedef typename SH::Key Key;
-    typedef typename SH::Key_hash Key_hash;
-    typedef typename SH::Key_pred Key_pred;
+    typedef SH::Key Key;
+    typedef SH::Key_hash Key_hash;
+    typedef SH::Key_pred Key_pred;
 
     typedef std::unordered_map<Key, Sym_entry, Key_hash, Key_pred> Sym_map;
     
@@ -71,11 +72,16 @@ namespace symdb
     Sym_entry * add_sym( Sym *sym );
     bool add_success() const;
     Sym_scope * get_parent_scope() const;
+    size_t get_alloc_size() const;
     void send_to( std::ostream&, std::string const& delim ) const;
+
+    Sym_map::const_iterator begin() const;
+    Sym_map::const_iterator end() const;
 
     friend std::ostream& operator<< (std::ostream&, Scope_tree const&);
 
   private:
+    size_t alloc_size;
     Sym_map symbols;
     bool add_successful;
     Sym_scope * parent_scope;

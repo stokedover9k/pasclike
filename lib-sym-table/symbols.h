@@ -28,9 +28,11 @@ namespace symdb
   struct String_type;
   struct Array_type;
   struct Record_type;
+  struct Invalid_type;
 
   struct Sym { 
     virtual Sym_tag get_entry_tag() const = 0;
+    virtual size_t get_alloc_size() const;
     virtual void send_to( std::ostream& ) const = 0; };
 
   ////----------------------------------////
@@ -55,8 +57,10 @@ namespace symdb
     bool is_string() const;
     bool is_array()  const;
     bool is_record() const;
+    bool is_valid()  const;
 
-    enum Type_tag { INT_TYPE_TAG,
+    enum Type_tag { INVALID_TYPE_TAG,
+		    INT_TYPE_TAG,
 		    BOOL_TYPE_TAG,
 		    STRING_TYPE_TAG,
 		    ARRAY_TYPE_TAG,
@@ -77,7 +81,8 @@ namespace symdb
     Type *type;
     //
     virtual Sym_tag get_entry_tag() const;
-    Var(std::string const& _name); 
+    Var(std::string const& _name, Type *_type);
+    virtual size_t get_alloc_size() const;
     virtual void send_to( std::ostream& ) const; };
 
   //======================================//
@@ -127,7 +132,7 @@ namespace symdb
   //======================================//
     typedef std::pair<int, int> Range;
     //
-    std::list<Range> ranges;
+    Range range;
     Type *base_type;
     //
     Array_type();
@@ -142,6 +147,11 @@ namespace symdb
     Record_type();
     virtual Type_tag get_type_tag() const;
     virtual void send_to( std::ostream& ) const; };
+
+  //======================================//
+  struct Invalid_type : public Type {     //
+  //======================================//
+    virtual Type_tag get_type_tag() const; };
   
   //======================================//
   struct Named_type : public Type {       //
