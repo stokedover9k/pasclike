@@ -18,7 +18,7 @@ SCANNER_LOG_LVL_FOR_PARSER=logDEBUG2
 FILELOG_MAX_LVL=logDEBUG2
 
 parser_C_SRCS             := 
-parser_CXX_SRCS           := parser-settings.cpp main-parser.cpp
+parser_CXX_SRCS           := parser-settings.cpp main-parser.cpp inter-code-gen.cpp
 parser_GENERATED_C_SRCS   := 
 parser_GENERATED_CXX_SRCS := pasclike.tab.cpp lex.yy.cpp
 
@@ -47,9 +47,6 @@ lex.yy.cpp lex.yy.h: pasclike.l pasclike.tab.h
 
 clean:
 	rm -fv ${parser_OBJS} ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${lang}.tab.cpp ${lang}.tab.h lex.yy.cpp lex.yy.h ${SCANNER_HEADER}
-
-main-parser.h:
-	#imagining main-parser.h
 
 zip:
 	zip parser.zip lib-sym-table/* loglib.h main-parser.cpp main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README scope_tree.h type_tests/*
