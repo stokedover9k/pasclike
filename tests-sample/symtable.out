@@ -1,0 +1,29 @@
+--- scope at: 0x1b5c1f0
+TYPE (0): integer
+TYPE (0): string
+VAR (0): true of type boolean
+FUNC (3): foo1 (a of type integer) returning r (alias for: RECORD[VAR (2): c of type string, VAR (1): b of type integer, VAR (0): a of type integer])
+VAR (1): false of type boolean
+FUNC (3): foo3 (a of type integer, b of type integer) returning s (alias for: string)
+TYPE (2): r (alias for: RECORD[VAR (2): c of type string, VAR (1): b of type integer, VAR (0): a of type integer])
+TYPE (0): boolean
+TYPE (2): s (alias for: string)
+FUNC (3): foo2 (a of type integer, c of type string) returning y (alias for: ARRAY[1..10] of integer)
+TYPE (2): y (alias for: ARRAY[1..10] of integer)
+VAR (2): z of type string
+--- scope at: 0x1b61560
+FUNC (0): foo1 (a of type integer) returning r (alias for: RECORD[VAR (2): c of type string, VAR (1): b of type integer, VAR (0): a of type integer])
+VAR (0): a of type integer
+--- scope at: 0x1b61c70
+VAR (1): b of type integer
+VAR (0): a of type integer
+FUNC (0): foo3 (a of type integer, b of type integer) returning s (alias for: string)
+--- scope at: 0x1b60b00
+VAR (2): c of type string
+VAR (1): b of type integer
+VAR (0): a of type integer
+--- scope at: 0x1b61910
+VAR (1): c of type string
+VAR (0): a of type integer
+FUNC (0): foo2 (a of type integer, c of type string) returning y (alias for: ARRAY[1..10] of integer)
+------------------------------------

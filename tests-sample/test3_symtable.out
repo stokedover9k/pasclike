@@ -1,0 +1,9 @@
+address: 0    , identifier: test4          , type: nil       
+address: 1    , identifier: divides        , type: 4         
+address: 2    , identifier: x              , type: integer   
+address: 3    , identifier: y              , type: integer   
+address: 4    , identifier: integer        , type: nil       
+address: 5    , identifier: a              , type: float     
+address: 6    , identifier: b              , type: float     
+address: 7    , identifier: float          , type: nil       
+address: 8    , identifier: boolean        , type: nil       

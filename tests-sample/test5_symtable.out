@@ -1,0 +1,3 @@
+address: 0    , identifier: test4          , type: nil       
+address: 1    , identifier: a              , type: integer   
+address: 2    , identifier: integer        , type: nil       

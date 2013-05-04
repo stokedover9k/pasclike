@@ -1,0 +1,13 @@
+address: 0    , identifier: scanner_test   , type: nil       
+address: 1    , identifier: i              , type: integer   
+address: 2    , identifier: j              , type: integer   
+address: 3    , identifier: num            , type: integer   
+address: 4    , identifier: integer        , type: nil       
+address: 5    , identifier: divides        , type: 2         
+address: 6    , identifier: x              , type: float     
+address: 7    , identifier: y              , type: integer   
+address: 8    , identifier: boolean        , type: nil       
+address: 9    , identifier: other          , type: 1         
+address: 10   , identifier: float          , type: nil       
+address: 11   , identifier: pi             , type: nil       
+address: 12   , identifier: readint        , type: nil       

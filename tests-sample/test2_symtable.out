@@ -1,0 +1,7 @@
+address: 0    , identifier: errorfree      , type: nil       
+address: 1    , identifier: s              , type: string    
+address: 2    , identifier: string         , type: nil       
+address: 3    , identifier: in             , type: integer   
+address: 4    , identifier: integer        , type: nil       
+address: 5    , identifier: z              , type: s         
+address: 6    , identifier: m              , type: in        

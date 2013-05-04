@@ -1,0 +1,2 @@
+/* This file exists to allow the Makefile to be concise.
+ */

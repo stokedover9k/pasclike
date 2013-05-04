@@ -1,0 +1,177 @@
+- DEBUG: 		KEYWORD program
+- DEBUG: 		IDENTIFIER errorfree
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD type
+- DEBUG: 		IDENTIFIER r
+- DEBUG: 		RELOP      =
+- DEBUG: 		KEYWORD record
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		COMMA
+- DEBUG: 		IDENTIFIER b
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER integer
+- INFO:    type := ID
+- DEBUG: 		SEMICOLON
+- DEBUG: 		IDENTIFIER c
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER string
+- INFO:    type := ID
+- DEBUG: 		KEYWORD end
+- INFO:    filedList := identifierList : type filedListTail
+- INFO:    type := RECORD fieldList END
+- INFO:    typeDef := ID = type ;
+- DEBUG: 		SEMICOLON
+- DEBUG: 		IDENTIFIER y
+- DEBUG: 		RELOP      =
+- DEBUG: 		KEYWORD array
+- DEBUG: 		LBRACKET
+- DEBUG: 		INTEGER    1
+- INFO:    constant := int
+- DEBUG: 		RANGE
+- DEBUG: 		INTEGER    10
+- INFO:    constant := int
+- DEBUG: 		RBRACKET
+- DEBUG: 		KEYWORD of
+- DEBUG: 		IDENTIFIER integer
+- INFO:    type := ID
+- INFO:    type := ARRAY [ constant .. constant ] of type
+- INFO:    typeDef := ID = type ;
+- DEBUG: 		SEMICOLON
+- INFO:    typeDefList := typeDefList typeDef ;
+- DEBUG: 		IDENTIFIER s
+- DEBUG: 		RELOP      =
+- DEBUG: 		IDENTIFIER string
+- INFO:    type := ID
+- INFO:    typeDef := ID = type ;
+- DEBUG: 		SEMICOLON
+- INFO:    typeDefList := typeDefList typeDef ;
+- DEBUG: 		KEYWORD var
+- INFO:    typeDefs := TYPE typeDef ; typeDefList
+- DEBUG: 		IDENTIFIER z
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER s
+- INFO:    type := ID
+- INFO:    varDecl := identifierList : type
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD function
+- INFO:    varDecls := VAR varDecl ; varDeclList
+- DEBUG: 		IDENTIFIER foo1
+- DEBUG: 		LPAR
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER integer
+- INFO:    type := ID
+- DEBUG: 		RPAR
+- INFO:    formalParamList := identifierList : type formalParamListTail
+- DEBUG: 		COLON
+- DEBUG: 		IDENTIFIER r
+- INFO:    resultType := id
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD begin
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		ASSIGN
+- INFO:    variable := id componentSelection
+- DEBUG: 		INTEGER    0
+- INFO:    factor := int
+- DEBUG: 		KEYWORD end
+- INFO:    term := factorList
+- INFO:    simpleExpr := termList
+- INFO:    expr := simpleExpr
+- INFO:    assignmentStmt := variable := expr
+- INFO:    simpleStmt := assignmentStmt
+- INFO:    stmt := closedStmt
+- INFO:    stmtSequence := stmt stmtSequenceTail
+- INFO:    compoundStmt := begin stmtSequence end
+- INFO:    block := varDecls
+- INFO:    procDecl := Function id ( formalParams ) : resultType ; block
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD function
+- DEBUG: 		IDENTIFIER foo2
+- DEBUG: 		LPAR
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER integer
+- INFO:    type := ID
+- DEBUG: 		SEMICOLON
+- DEBUG: 		IDENTIFIER c
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER string
+- INFO:    type := ID
+- DEBUG: 		RPAR
+- INFO:    formalParamList := identifierList : type formalParamListTail
+- DEBUG: 		COLON
+- DEBUG: 		IDENTIFIER y
+- INFO:    resultType := id
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD begin
+- DEBUG: 		KEYWORD while
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		KEYWORD do
+- INFO:    variable := id componentSelection
+- INFO:    factor := variable
+- INFO:    term := factorList
+- INFO:    simpleExpr := termList
+- INFO:    expr := simpleExpr
+- DEBUG: 		IDENTIFIER bar
+- DEBUG: 		LPAR
+- DEBUG: 		RPAR
+- INFO:    procedureStmt := id ( actualParamList )
+- INFO:    simpleStmt := procedureStmt
+- INFO:    closeStmt := loopHeader closedStmt
+- INFO:    stmt := closedStmt
+- DEBUG: 		KEYWORD end
+- INFO:    stmtSequence := stmt stmtSequenceTail
+- INFO:    compoundStmt := begin stmtSequence end
+- INFO:    block := varDecls
+- INFO:    procDecl := Function id ( formalParams ) : resultType ; block
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD function
+- DEBUG: 		IDENTIFIER foo3
+- DEBUG: 		LPAR
+- DEBUG: 		IDENTIFIER a
+- DEBUG: 		COMMA
+- DEBUG: 		IDENTIFIER b
+- DEBUG: 		COLON
+- INFO:    identifierList := ID identifierListTail
+- DEBUG: 		IDENTIFIER integer
+- INFO:    type := ID
+- DEBUG: 		RPAR
+- INFO:    formalParamList := identifierList : type formalParamListTail
+- DEBUG: 		COLON
+- DEBUG: 		IDENTIFIER s
+- INFO:    resultType := id
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD forward
+- INFO:    procDecl := Function id ( formalParams ) : resultType ; forward
+- DEBUG: 		SEMICOLON
+- DEBUG: 		KEYWORD begin
+- DEBUG: 		IDENTIFIER z
+- DEBUG: 		ASSIGN
+- INFO:    variable := id componentSelection
+- DEBUG: 		IDENTIFIER foo3
+- DEBUG: 		LPAR
+- DEBUG: 		INTEGER    3
+- INFO:    factor := int
+- DEBUG: 		RPAR
+- INFO:    term := factorList
+- INFO:    simpleExpr := termList
+- INFO:    expr := simpleExpr
+- INFO:    actualParamList := expr actualParamListTail
+- INFO:    factor := functionReference
+- DEBUG: 		KEYWORD end
+- INFO:    term := factorList
+- INFO:    simpleExpr := termList
+- INFO:    expr := simpleExpr
+- INFO:    assignmentStmt := variable := expr
+- INFO:    simpleStmt := assignmentStmt
+- INFO:    stmt := closedStmt
+- INFO:    stmtSequence := stmt stmtSequenceTail
+- INFO:    compoundStmt := begin stmtSequence end
+- DEBUG: 		DOT
+- INFO:    Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .

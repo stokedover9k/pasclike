@@ -1,0 +1,14 @@
+address: 0    , identifier: errorfree      , type: nil       
+address: 1    , identifier: r              , type: record    
+address: 2    , identifier: a              , type: integer   
+address: 3    , identifier: b              , type: integer   
+address: 4    , identifier: integer        , type: nil       
+address: 5    , identifier: c              , type: string    
+address: 6    , identifier: string         , type: nil       
+address: 7    , identifier: y              , type: array     
+address: 8    , identifier: s              , type: string    
+address: 9    , identifier: z              , type: s         
+address: 10   , identifier: foo1           , type: 1         
+address: 11   , identifier: foo2           , type: 2         
+address: 12   , identifier: bar            , type: nil       
+address: 13   , identifier: foo3           , type: 2         

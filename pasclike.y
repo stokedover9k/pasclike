@@ -29,6 +29,8 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
 
  symdb::Sym_table symtable;
  symdb::Invalid_type *invalid_type = new symdb::Invalid_type();
+ cgen::Tmp_gen tmp_gen;
+ std::ostream& codeout(std::cout);
 //---------------------------------
 
 int yyerror( const char *p ) { ERRLOG << p; }
@@ -207,11 +209,44 @@ int yyerror( const char *p ) { ERRLOG << p; }
      ss << num;
      return std::string( ss.str() );
    }
-%}
+
+ cgen::Addr * create_addr( symdb::Type * t )   { return new cgen::Addr( tmp_gen.gen_tmp(), t ); }
+ cgen::Addr * create_addr( symdb::Var  * v )   { return new cgen::Addr( v ); }
+
+ cgen::Addr * resolve_addr( cgen::Addr * a ) {
+   cgen::Op::Opcode op;
+   cgen::Addr *addr;
+   cgen::Addr *resolution;
+
+   switch( a->get_resolution_type() )
+     {
+     case cgen::Addr::NONE:
+       return a;
+     case cgen::Addr::INDEX:
+       op = cgen::Op::COPY_INDEXED;
+       addr = new cgen::Addr( tmp_gen.gen_tmp(), a->get_type() );
+       resolution = a->get_index();
+       break;
+     case cgen::Addr::FIELD:
+       op = cgen::Op::COPY_COMPONENT;
+       addr = new cgen::Addr( tmp_gen.gen_tmp(), a->get_type() );
+       resolution = a->get_field();
+       break;
+     default:
+       throw std::invalid_argument("Unknown type of address resolution.");
+     }
+
+   cgen::Instr instr(cgen::Op::COPY, a, NULL, addr);
+   codeout << instr;
+   return instr.res;
+ }
+
+ %}
 
 %code requires {
   #include <list>
   #include "symtable.h"
+  #include "inter-code-gen.h"
 
   extern symdb::Sym_table symtable;
 
@@ -226,6 +261,7 @@ int yyerror( const char *p ) { ERRLOG << p; }
 }
 
 %union {
+  cgen::Addr *addr;
   char const *lexeme;
   symdb::Type *type;
   symdb::Var *var;
@@ -259,8 +295,10 @@ int yyerror( const char *p ) { ERRLOG << p; }
 
 %type <ids> identifierList identifierListTail
 
+%type <addr> variable componentSelection
+
 %type <type> type resultType 
-%type <type> factor factorList term termList expr simpleExpr variable componentSelection
+%type <type> factor factorList term termList expr simpleExpr
 %type <types> actualParamList actualParamListTail
 
 %type <func> funcDecl funcSignature functionReference
@@ -468,58 +506,64 @@ variable
    : ID                   { LOG(ParserLog) << "   variable := id componentSelection"; 
                             symdb::Var var($1, invalid_type);
 			    symdb::Sym_entry *entry = symtable.find( &var );
-			    if( entry == NULL ) {
-			      $<type>$ = invalid_type;
+			    if( entry == NULL ) { 
+			      $<addr>$ = create_addr( invalid_type );     // TODO: also issue "load invalid var" instrcution
 			      ERRLOG << "undeclared variable: " << $1; }
 			    else if( entry->tag != symdb::VAR_TAG ) {
-			      $<type>$ = invalid_type;
+			      $<addr>$ = create_addr( invalid_type );     // TODO: also issue "load invalid var" instrcution
 			      ERRLOG << "id does not name a variable: " << $1; }
-			    else
-			      $<type>$ = dynamic_cast<symdb::Var*>(entry->sym)->type;
+			    else  //$<type>$ = dynamic_cast<symdb::Var*>(entry->sym)->type;
+			      $<addr>$ = create_addr( dynamic_cast<symdb::Var*>(entry->sym) );
                           }
      componentSelection   { $$ = $3; }
    ;
 componentSelection
    : componentSelection '.' ID                { LOG(ParserLog) << "   componentSelection := . id componentSelection"; 
                                                 // TODO: +
-                                                if( ! $1->is_valid() )
+                                                if( ! $1->get_type()->is_valid() )
 						  $$ = $1;  // do nothing - error was already reported
-						else if( $1->is_record() ) {
-						  symdb::Record_type *r = dynamic_cast<symdb::Record_type*>(dynamic_cast<symdb::Type*>($1)->get_type());
+						else if( $1->get_type()->is_record() ) {
+						  symdb::Record_type *r = dynamic_cast<symdb::Record_type*>(dynamic_cast<symdb::Type*>($1->get_type())->get_type());
 						  symdb::Var var( $3, invalid_type );
 						  symdb::Sym_entry *entry = r->scope->get_sym( &var );
 						  if( entry == NULL ) {
-						    ERRLOG << "no such field in type " << *r << ": " << $3;
-						    $$ = invalid_type; }
+						    $$ = create_addr( invalid_type );         // TODO: also issue "load invalid var" instrcution
+						    ERRLOG << "no such field in type " << *r << ": " << $3; }
 						  else if( entry->tag != symdb::VAR_TAG ) {
-						    ERRLOG << $$ << " is not a field in type " << $1;
-						    $$ = invalid_type; }
+						    $$ = create_addr( invalid_type );         // TODO: also issue "load invalid var" instrcution
+						    ERRLOG << $3 << " is not a field in type " << $1->get_type(); }
 						  else {
-						    $$ = dynamic_cast<symdb::Var*>(entry->sym)->type;
+						    symdb::Var *field = dynamic_cast<symdb::Var*>(entry->sym);
+						    cgen::Addr *resolved_base = resolve_addr( $1 );
+						    resolved_base->set_field( new cgen::Addr(field) );
+						    $$ = resolved_base;
 						  }
 						}
 						else {
-						  ERRLOG << "cannot select " << $3 << " in " << $1;
-						  $$ = invalid_type;
-						}
+						  $$ = create_addr( invalid_type );          // TODO: also issue "load invalid var" instrcution
+						  ERRLOG << "cannot select " << $3 << " in " << $1->get_type(); }
                                               }
-   | componentSelection '[' expr ']'          { LOG(ParserLog) << "   componentSelection := [ expr ] componentSelection"; 
-                                                // TODO: 
-                                                if( ! $1->is_valid() )
+   | componentSelection '[' expr ']'          { LOG(ParserLog) << "   componentSelection := componentSelection [ expr ]"; 
+                                                if( ! $1->get_type()->is_valid() )
 						  $$ = $1;  // do nothing - error was laredy reported
-						else if( $1->is_array() ) {
-						  $$ = dynamic_cast<symdb::Array_type*>($1)->base_type;
+						else if( $1->get_type()->is_array() ) {
+						  symdb::Type *new_type = dynamic_cast<symdb::Array_type*>($1->get_type())->base_type;
+						  cgen::Addr  *expr_addr = create_addr( new symdb::Int_type() );   // TODO: get address from expr
+						  
+						  cgen::Addr *resolved_base   = resolve_addr( $1 );         // already resolved or returns a new resolved address
+						  cgen::Addr *resolved_index  = resolve_addr( expr_addr );
+						  $$ = resolved_base;
+						  $$->set_index( resolved_index );
 						}
 						else {
-						  ERRLOG << "cannot index type: " << $1;
-						  $$ = invalid_type;
-						}
+						  $$ = create_addr( invalid_type );          // TODO: also issue "load invalid var" instrcution
+						  ERRLOG << "cannot index type: " << $1->get_type(); }
 						// check expr type
                                                 if( ! $3->is_int() ) {
 						  ERRLOG << "index expression must evaluate to int: found " << *$3;
 						}
                                               }
-   | /* empty */                              { $$ = $<type>0; }
+   | /* empty */                              { $$ = $<addr>0; }
    ;
 sign : '+'         { $$ = PLUS_OP; }
      | '-'         { $$ = MINUS_OP; }
@@ -630,7 +674,7 @@ simpleStmt
    ;
 assignmentStmt
    : variable ASSIGN expr                               { LOG(ParserLog) << "   assignmentStmt := variable := expr"; 
-                                                          if( type_equivalence( $1, $3 ) == NULL )
+                                                          if( type_equivalence( $1->get_type(), $3 ) == NULL )
 							    ERRLOG << "cannot assign expression of type " << *$3 << " to " << *$1;
                                                         }
    ;
@@ -722,7 +766,7 @@ factor
    | STRING                 { LOG(ParserLog) << "   factor := string";
                               $$ = $1->type;    }
    | variable               { LOG(ParserLog) << "   factor := variable";
-                              $$ = $1;    }
+                              $$ = $1->get_type();    }
    | functionReference      { LOG(ParserLog) << "   factor := functionReference";
                               $$ = ($$ == NULL ? new symdb::Invalid_type() : $1->return_type); }
    | NOT factor             { LOG(ParserLog) << "   factor := not factor";
