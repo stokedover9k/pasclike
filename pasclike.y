@@ -30,6 +30,7 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
  symdb::Sym_table symtable;
  symdb::Invalid_type *invalid_type = new symdb::Invalid_type();
  cgen::Tmp_gen tmp_gen;
+ cgen::Label_gen label_gen;
  std::ostream& codeout(std::cout);
 //---------------------------------
 
@@ -212,6 +213,9 @@ int yyerror( const char *p ) { ERRLOG << p; }
 
  cgen::Addr * create_addr( symdb::Type * t )   { return new cgen::Addr( tmp_gen.gen_tmp(), t ); }
  cgen::Addr * create_addr( symdb::Var  * v )   { return new cgen::Addr( v ); }
+ cgen::Addr * create_addr( symdb::Lit  * l )   { return new cgen::Addr( l ); }
+ cgen::Addr * create_addr( symdb::Func * f )   { return new cgen::Addr( f ); }
+ cgen::Addr * create_addr( symdb::Proc * p )   { return new cgen::Addr( p ); }
 
  cgen::Addr * resolve_addr( cgen::Addr * a ) {
    cgen::Op::Opcode op;
@@ -241,6 +245,20 @@ int yyerror( const char *p ) { ERRLOG << p; }
    return instr.res;
  }
 
+ cgen::Op::Opcode op_to_opcode( Op_tag o ) {
+   switch(o) {
+   case TIMES_OP:   return cgen::Op::MULT;    // multOp
+   case INT_DIV_OP: return cgen::Op::DIVIDE;
+   case MOD:        return cgen::Op::MOD;
+   case AND:        return cgen::Op::AND;
+   case PLUS_OP:    return cgen::Op::PLUS;    // addOp
+   case MINUS_OP:   return cgen::Op::MINUS;
+   case OR_OP:      return cgen::Op::OR;
+   default:
+     std::invalid_argument("op_to_opcode: cannot convert op tag");
+   }
+ }
+
  %}
 
 %code requires {
@@ -261,7 +279,8 @@ int yyerror( const char *p ) { ERRLOG << p; }
 }
 
 %union {
-  cgen::Addr *addr;
+  cgen::Addr             *addr;
+  std::list<cgen::Addr*> *addrs;
   char const *lexeme;
   symdb::Type *type;
   symdb::Var *var;
@@ -296,10 +315,13 @@ int yyerror( const char *p ) { ERRLOG << p; }
 %type <ids> identifierList identifierListTail
 
 %type <addr> variable componentSelection
+%type <addr> factor factorList 
+%type <addr> term termList 
+%type <addr> simpleExpr expr
+
+%type <addrs> actualParamList actualParamListTail
 
 %type <type> type resultType 
-%type <type> factor factorList term termList expr simpleExpr
-%type <types> actualParamList actualParamListTail
 
 %type <func> funcDecl funcSignature functionReference
 %type <proc> procDecl procSignature
@@ -445,15 +467,15 @@ formalParamListTail
 actualParamList
    : expr actualParamListTail               { LOG(ParserLog) << "   actualParamList := expr actualParamListTail"; 
                                               $$ = $2;
-					      $$->push_front( $1 );
+					      $$->push_front( resolve_addr($1) );
                                             }
-   | /* empty */                            { $$ = new std::list<symdb::Type*>(); }
+   | /* empty */                            { $$ = new std::list<cgen::Addr*>(); }
    ;
 actualParamListTail
    : actualParamListTail ',' expr           { $$ = $1;
-                                              $$->push_back( $3 );
+                                              $$->push_back( resolve_addr($3) );
                                             }
-   | /* empty */                            { $$ = new std::list<symdb::Type*>(); }
+   | /* empty */                            { $$ = new std::list<cgen::Addr*>(); }
    ;
 block
    : varDecls compoundStmt                                { LOG(ParserLog) << "   block := varDecls compoundStmt"; }
@@ -548,7 +570,7 @@ componentSelection
 						  $$ = $1;  // do nothing - error was laredy reported
 						else if( $1->get_type()->is_array() ) {
 						  symdb::Type *new_type = dynamic_cast<symdb::Array_type*>($1->get_type())->base_type;
-						  cgen::Addr  *expr_addr = create_addr( new symdb::Int_type() );   // TODO: get address from expr
+						  cgen::Addr  *expr_addr = $3;   // TODO: get address from expr
 						  
 						  cgen::Addr *resolved_base   = resolve_addr( $1 );         // already resolved or returns a new resolved address
 						  cgen::Addr *resolved_index  = resolve_addr( expr_addr );
@@ -559,8 +581,8 @@ componentSelection
 						  $$ = create_addr( invalid_type );          // TODO: also issue "load invalid var" instrcution
 						  ERRLOG << "cannot index type: " << $1->get_type(); }
 						// check expr type
-                                                if( ! $3->is_int() ) {
-						  ERRLOG << "index expression must evaluate to int: found " << *$3;
+                                                if( ! $3->get_type()->is_int() ) {
+						  ERRLOG << "index expression must evaluate to int: found " << *$3->get_type();
 						}
                                               }
    | /* empty */                              { $$ = $<addr>0; }
@@ -575,7 +597,7 @@ type
 							symdb::Sym_entry *entry = symtable.find( &t );
 							if( entry == NULL ) {
 							  ERRLOG << "unknown type: " << $1;
-							  $$ = new symdb::Invalid_type(); }
+							  $$ = invalid_type; }
 							else if( entry->sym->get_entry_tag() == symdb::TYPE_TAG )
 							  $$ = dynamic_cast<symdb::Type*>(entry->sym)->get_type();
 							else {
@@ -632,29 +654,26 @@ closedStructuredStmt
    : compoundStmt                                       { LOG(ParserLog) << "   closeStmt := compoundStmt"; }
    | loopHeader closedStmt                              { LOG(ParserLog) << "   closeStmt := loopHeader closedStmt"; }
    | IF expr THEN closedStmt ELSE closedStmt            { LOG(ParserLog) << "   closeStmt := if expr then closedStmt else closedStmt"; 
-                                                          if( ! $2->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2;
+                                                          if( ! $2->get_type()->is_bool() )
+							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
                                                         }
    ;
 openStructuredStmt
    : loopHeader openStmt                                { LOG(ParserLog) << "   openStmt := loopHeader openStmt"; }
    | IF expr THEN closedStmt ELSE openStmt              { LOG(ParserLog) << "   openStmt := if expr then closedStmt else openStmt";
-                                                          if( ! $2->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2; 
+                                                          if( ! $2->get_type()->is_bool() )
+							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
                                                         }
    | IF expr THEN stmt                                  { LOG(ParserLog) << "   openStmt := if expr then stmt";
-                                                          if( ! $2->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2;
+                                                          if( ! $2->get_type()->is_bool() )
+							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
                                                         }
    ;
 loopHeader
-   : WHILE expr DO                          { if( ! $2->is_bool() )
-	                                      ERRLOG << "expected a boolean condition in loop header: found " << *$2;
+   : WHILE expr DO                          { if( ! $2->get_type()->is_bool() )
+	                                      ERRLOG << "expected a boolean condition in loop header: found " << *$2->get_type();
                                             }
-   | FOR ID ASSIGN expr TO expr DO          { // TODO: check expr type match            +
-                                              // TODO: check expr type is integer (?)   +
-                                              // TODO: --- either check ID is available
-                                              // TODO: ---     or check ID is defined   +
+   | FOR ID ASSIGN expr TO expr DO          { 
                                               symdb::Var var($2, invalid_type);
 					      symdb::Sym_entry *entry = symtable.find( &var );
 					      if( entry == NULL )
@@ -663,8 +682,8 @@ loopHeader
 						ERRLOG << $2 << " is not a variable name";
 					      else if( ! dynamic_cast<symdb::Var*>(entry->sym)->type->is_int() )
 						ERRLOG << "integer variable expected in for-loop header: found " << *dynamic_cast<symdb::Var*>(entry->sym);
-                                              if( ! $4->is_int() || ! $6->is_int() )
-						ERRLOG << "integer expressions expected in loop header: found '" << *$4 << " to " << *$6 << "'";
+                                              if( ! $4->get_type()->is_int() || ! $6->get_type()->is_int() )
+						ERRLOG << "integer expressions expected in loop header: found '" << *$4->get_type() << " to " << *$6->get_type() << "'";
                                             }
    ;
 simpleStmt
@@ -674,8 +693,8 @@ simpleStmt
    ;
 assignmentStmt
    : variable ASSIGN expr                               { LOG(ParserLog) << "   assignmentStmt := variable := expr"; 
-                                                          if( type_equivalence( $1->get_type(), $3 ) == NULL )
-							    ERRLOG << "cannot assign expression of type " << *$3 << " to " << *$1;
+                                                          if( type_equivalence( $1->get_type(), $3->get_type() ) == NULL )
+							    ERRLOG << "cannot assign expression of type " << *$3->get_type() << " to " << *$1;
                                                         }
    ;
 procedureStmt
@@ -690,12 +709,17 @@ procedureStmt
 						int formalNum = p->formals.size();
 						int actualNum = $3->size();
 						std::list<symdb::Var*>::const_iterator formalItr( p->formals.begin() );
-						std::list<symdb::Type*>::const_iterator actualItr( $3->begin() );
+						std::list<cgen::Addr*>::const_iterator actualItr( $3->begin() );
 						for( int i = (actualNum < formalNum ? actualNum : formalNum); i > 0; i-- ) {
 						  if( *formalItr == NULL || *actualItr == NULL )  continue;
-						  if( NULL == type_equivalence( (*formalItr)->type, *actualItr ) ) {
+						  
+						  cgen::Addr *param = *actualItr;   // actual parameters are always resolved
+						  cgen::Instr instr( cgen::Op::PUSH_PARAM, NULL, NULL, param );
+						  codeout << instr;
+
+						  if( NULL == type_equivalence( (*formalItr)->type, (*actualItr)->get_type() ) ) {
 						    ERRLOG << "actual parameter type doesn't match formal parameter type: expected " 
-							   << **formalItr << ", but found " << **actualItr;
+							   << **formalItr << ", but found " << *(*actualItr)->get_type();
 						  }
 						  formalItr++;
 						  actualItr++;
@@ -703,6 +727,10 @@ procedureStmt
 						if( actualNum != formalNum ) {
 						  ERRLOG << "function argument number mismatch: " << formalNum << " expected, " << actualNum << " given";
 						}
+						
+						cgen::Addr *proc_addr = create_addr( p );
+						cgen::Instr instr( cgen::Op::PROCCALL, NULL, NULL, proc_addr );
+						codeout << instr;
 					      }
                                             }
    ;
@@ -718,32 +746,70 @@ stmtSequenceTail
    ;
     //===================================================================
 expr
-   : simpleExpr relOp simpleExpr      { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";
-                                        $$ = result_of_op( $1, $2, $3 );
-					if( $$ == NULL ) {
-					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << $1 << ", " << $3;
-					  $$ = new symdb::Invalid_type(); }
+   : simpleExpr relOp simpleExpr      { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";      
+
+					symdb::Type *arg1_type = $1->get_type();
+					symdb::Type *arg2_type = $3->get_type();
+					cgen::Addr *arg1 = resolve_addr( $1 );
+					cgen::Addr *arg2 = resolve_addr( $3 );
+					
+					symdb::Type *type = result_of_op( arg1_type, $2, arg2_type );
+
+					if( type == NULL ) {
+					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) 
+						 << ". Found: " << *arg1_type << ", " << *arg2_type;
+					  type = invalid_type; }
+
+					$$ = create_addr( type );
+					cgen::Op::Opcode op = op_to_opcode( $2 );
+					cgen::Instr instr( op, arg1, arg2, $$ );
+					cout << instr;
                                       }
    | simpleExpr                       { LOG(ParserLog) << "   expr := simpleExpr";
                                         $$ = $1;
                                       }
    ;
 simpleExpr
-   : sign termList                    { LOG(ParserLog) << "   simpleExpr := sign termList";
-                                        $$ = result_of_op( NULL, $1, $2 );
-					if( $$ == NULL ) {
-					  ERRLOG << "cannot apply unary " << op_to_string($1) << " to type: " << $1;
-					  $$ = new symdb::Invalid_type(); }
+   : 
+     /*
+     sign termList                    { LOG(ParserLog) << "   simpleExpr := sign termList";
+
+					symdb::Type *operand_type = $2->get_type();
+					cgen::Addr  *operand_addr = $2;
+					cgen::Addr  *addr;
+					symdb::Type *result_type = result_of_op( NULL, $1, operand_type );
+
+					if( result_type == NULL ) {
+					  ERRLOG << "cannot apply unary " << op_to_string($1) << " to type: " << *operand_type;
+					  result_type = invalid_type; }
+
+					if( $1 == MINUS_OP ) {
+					  addr = create_addr( result_type );
+					  cgen::Instr instr( cgen::Op::UMINUS, operand_addr, NULL, addr );
+					  codeout << instr; }
+					else { addr = $2; }
+					$$ = addr;
                                       }
-   |      termList                    { LOG(ParserLog) << "   simpleExpr := termList";
+				      | 
+     */
+     termList                         { LOG(ParserLog) << "   simpleExpr := termList";
                                         $$ = $1;
                                       }
    ;
 termList
-   : termList addOp term              { $$ = result_of_op( $1, $2, $3 );
-                                        if( $$ == NULL ) {
-					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << $1 << ", " << $3;
-					  $$ = new symdb::Invalid_type(); }
+   : termList addOp term              { symdb::Type *type = result_of_op( $1->get_type(), $2, $3->get_type() );
+
+                                        if( type == NULL ) {
+					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) 
+						 << ". Found: " << *$1->get_type() << ", " << *$3->get_type();
+					  type = invalid_type; }
+					
+					cgen::Addr *addr = create_addr( type );
+					cgen::Op::Opcode op = op_to_opcode($2);
+					cgen::Instr instr( op, $1, $3, addr );
+					codeout << instr;
+					
+					$$ = addr;
                                       }
    | term                             { $$ = $1; }
    ;
@@ -753,49 +819,102 @@ term
                                       }
    ;
 factorList
-   : factorList mulOp factor  { $$ = result_of_op( $1, $2, $3 );
-                                if(  $$ == NULL ) {
-				  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << $1 << ", " << $3;
-				  $$ = new symdb::Invalid_type(); }
+   : factorList mulOp factor  { symdb::Type *type = result_of_op( $1->get_type(), $2, $3->get_type() );
+
+                                if( type == NULL ) {
+				  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << *$1->get_type() << ", " << *$3->get_type();
+				  type = invalid_type; }
+
+				cgen::Addr *addr = create_addr( type );
+				cgen::Op::Opcode op = op_to_opcode($2);
+				cgen::Instr instr( op, $1, $3, addr);
+				codeout << instr;
+
+				$$ = addr;
                               }
    | factor                   { $$ = $1; }
    ;
 factor
    : INTEGER                { LOG(ParserLog) << "   factor := int";
-                              $$ = $1->type;    }
+                              cgen::Addr *addr = create_addr( $1 );  // TODO: assign to factor
+                              $$ = addr;    }
    | STRING                 { LOG(ParserLog) << "   factor := string";
-                              $$ = $1->type;    }
+                              cgen::Addr *addr = create_addr( $1 );  // TODO: assign to factor
+                              $$ = addr;    }
    | variable               { LOG(ParserLog) << "   factor := variable";
-                              $$ = $1->get_type();    }
+                              cgen::Addr *addr = $1;                 // TODO: assign to factor
+                              $$ = $1;    }
    | functionReference      { LOG(ParserLog) << "   factor := functionReference";
-                              $$ = ($$ == NULL ? new symdb::Invalid_type() : $1->return_type); }
+                                                                     // TODO: assign to factor - function???
+                              symdb::Type *return_type = $1 == NULL ? invalid_type : $1->return_type;
+                              cgen::Addr  *func_addr   = create_addr( $1 );
+			      
+			      cgen::Addr  *addr        = create_addr( return_type );
+			      cgen::Instr instr( cgen::Op::FUNCALL, func_addr, NULL, addr );
+			      codeout << instr;
+
+                              $$ = addr; }
    | NOT factor             { LOG(ParserLog) << "   factor := not factor";
-                              $$ = result_of_op( NULL, NOT_OP, $2 );
-			      if( $$ == NULL ) {
-				ERRLOG << "cannot apply unary " << op_to_string(NOT_OP) << " to type: " << $2;
-				$$ = new symdb::Invalid_type(); }
+
+			      symdb::Type *operand_type = $2->get_type();
+			      cgen::Addr *operand_addr = $2;
+			      symdb::Type *result_type = result_of_op( NULL, NOT_OP, operand_type );
+
+			      if( result_type == NULL ) {
+				ERRLOG << "cannot apply unary " << op_to_string(NOT_OP) << " to type: " << *operand_type;
+				result_type = invalid_type; }
+
+			      cgen::Addr *addr = create_addr( result_type );
+			      cgen::Instr instr( cgen::Op::NOT, operand_addr, NULL, addr );
+			      codeout << instr;
+			      $$ = addr;
+                            }
+   | sign factor            { LOG(ParserLog) << "   factor := sign factor";
+
+			      symdb::Type *operand_type = $2->get_type();
+			      cgen::Addr  *operand_addr = $2;
+			      cgen::Addr  *addr;
+			      symdb::Type *result_type = result_of_op( NULL, $1, operand_type );
+
+			      if( result_type == NULL ) {
+				ERRLOG << "cannot apply unary " << op_to_string($1) << " to type: " << *operand_type;
+				result_type = invalid_type; }
+
+			      if( $1 == MINUS_OP ) {
+				addr = create_addr( result_type );
+				cgen::Instr instr( cgen::Op::UMINUS, operand_addr, NULL, addr );
+				codeout << instr; }
+			      else { addr = $2; }
+			      $$ = addr;
                             }
    | '(' expr ')'           { LOG(ParserLog) << "   factor := ( expr )";
-                              $$ = $2; }
+                              cgen::Addr *addr = $2; // TODO: assign expr directly to factor
+                              $$ = addr; }
    ;
 functionReference
    : ID '(' actualParamList ')'       { symdb::Func func( $1 );
 					symdb::Sym_entry *entry = symtable.find( &func );
 					if( entry == NULL || entry->tag != symdb::FUNC_TAG ) {
 					  ERRLOG << "function name not found: " << $1;
-					  $$ = NULL;
+					  $$ = new symdb::Func("!__UNKNOWN_FUNCTION__");
+					  $$->return_type = invalid_type;
+					  $$->scope = new symdb::Sym_scope();
 					}
 					else {
 					  $$ = dynamic_cast<symdb::Func*>(entry->sym);
-					  std::list<symdb::Type*>::const_iterator actualItr( $3->begin() );
+					  std::list<cgen::Addr*>::const_iterator actualItr( $3->begin() );
 					  for( std::list<symdb::Var*>::const_iterator formalItr( $$->formals.begin() );
 					       formalItr != $$->formals.end() && actualItr != $3->end();
 					       formalItr++, actualItr++ ) {
 					    if( *formalItr == NULL || *actualItr == NULL )  continue;  // this error was already reported
-					    if( NULL == type_equivalence( (*formalItr)->type, *actualItr ) ) {
+					    
+					    cgen::Addr *param = *actualItr;  // actual parameters are always resolved
+					    cgen::Instr instr( cgen::Op::PUSH_PARAM, NULL, NULL, param );
+					    codeout << instr;
+					    
+					    if( NULL == type_equivalence( (*formalItr)->type, (*actualItr)->get_type() ) ) {
 					      ERRLOG << "actual parameter type doesn't match formal parameter type: expected " 
-						     << **formalItr << ", but found " << **actualItr;
-					    }
+						     << **formalItr << ", but found " << *(*actualItr)->get_type(); }
 					  }
 					}
                                       }
