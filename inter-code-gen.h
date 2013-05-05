@@ -77,12 +77,17 @@ namespace cgen
   //===========================================//
       MULT, DIVIDE, PLUS, MINUS, MOD,          // binary:  x = y op z
       AND, OR,                                 //
+      LT, LE, GT, GE, EQ, NE,                  //
+      IF_LT_GOTO, IF_GT_GOTO,                  //
       INDEXED_COPY,                            //          x[y] = z
       COPY_INDEXED,                            //          x = y[z]
       COMPONENT_COPY,                          //          x.y = z
       COPY_COMPONENT,                          //          x = y.z
       UMINUS, NOT, COPY, FUNCALL, PROCCALL,    // unary:   x = op y
-      PUSH_PARAM, LIT_ACCESS, VAR_ACCESS       // nonary:  x
+      IF_TRUE_GOTO, IF_FALSE_GOTO,             //
+      PUSH_PARAM, LABEL,                       // nonary:  x
+      GOTO,
+      LIT_ACCESS, VAR_ACCESS                   //
     }; 
     
     bool static is_binary( Opcode );

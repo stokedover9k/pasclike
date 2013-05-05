@@ -29,12 +29,16 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
 
  symdb::Sym_table symtable;
  symdb::Invalid_type *invalid_type = new symdb::Invalid_type();
+ symdb::Int_type *int_type = new symdb::Int_type();
  cgen::Tmp_gen tmp_gen;
  cgen::Label_gen label_gen;
  std::ostream& codeout(std::cout);
 //---------------------------------
 
 int yyerror( const char *p ) { ERRLOG << p; }
+
+ Loop_labels::Loop_labels( cgen::Label const* a, cgen::Label const* s ) :
+ again(a), stop(s) { }
 
 // This is meant to be a private method. Use the drivers following this definition;
 // Adds new Vars to a list pointed to by add_to before the add_position.
@@ -211,11 +215,12 @@ int yyerror( const char *p ) { ERRLOG << p; }
      return std::string( ss.str() );
    }
 
- cgen::Addr * create_addr( symdb::Type * t )   { return new cgen::Addr( tmp_gen.gen_tmp(), t ); }
- cgen::Addr * create_addr( symdb::Var  * v )   { return new cgen::Addr( v ); }
- cgen::Addr * create_addr( symdb::Lit  * l )   { return new cgen::Addr( l ); }
- cgen::Addr * create_addr( symdb::Func * f )   { return new cgen::Addr( f ); }
- cgen::Addr * create_addr( symdb::Proc * p )   { return new cgen::Addr( p ); }
+ cgen::Addr * create_addr( symdb::Type * t )       { return new cgen::Addr( tmp_gen.gen_tmp(), t ); }
+ cgen::Addr * create_addr( symdb::Var  * v )       { return new cgen::Addr( v ); }
+ cgen::Addr * create_addr( symdb::Lit  * l )       { return new cgen::Addr( l ); }
+ cgen::Addr * create_addr( symdb::Func * f )       { return new cgen::Addr( f ); }
+ cgen::Addr * create_addr( symdb::Proc * p )       { return new cgen::Addr( p ); }
+ cgen::Addr * create_addr( cgen::Label const * l ) { return new cgen::Addr( l ); }
 
  cgen::Addr * resolve_addr( cgen::Addr * a ) {
    cgen::Op::Opcode op;
@@ -254,6 +259,12 @@ int yyerror( const char *p ) { ERRLOG << p; }
    case PLUS_OP:    return cgen::Op::PLUS;    // addOp
    case MINUS_OP:   return cgen::Op::MINUS;
    case OR_OP:      return cgen::Op::OR;
+   case LT_OP:      return cgen::Op::LT;      // relOp
+   case LE_OP:      return cgen::Op::LE;
+   case GT_OP:      return cgen::Op::GT;
+   case GE_OP:      return cgen::Op::GE;
+   case EQ_OP:      return cgen::Op::EQ;
+   case NE_OP:      return cgen::Op::NE;
    default:
      std::invalid_argument("op_to_opcode: cannot convert op tag");
    }
@@ -276,11 +287,21 @@ int yyerror( const char *p ) { ERRLOG << p; }
 		/* and */ AND_OP, /* or */ OR_OP, /* not */ NOT_OP
   };
   #endif//__ATTRIB_STRUCTS_DEF__
+
+  #ifndef __LOOP_LABELS__
+  #define __LOOP_LABELS__
+  struct Loop_labels { 
+    cgen::Label const *again;
+    cgen::Label const *stop; 
+    Loop_labels( cgen::Label const* a, cgen::Label const* s );
+  };
+  #endif//__LOOP_LABELS__
 }
 
 %union {
   cgen::Addr             *addr;
   std::list<cgen::Addr*> *addrs;
+  Loop_labels *loop;
   char const *lexeme;
   symdb::Type *type;
   symdb::Var *var;
@@ -320,6 +341,8 @@ int yyerror( const char *p ) { ERRLOG << p; }
 %type <addr> simpleExpr expr
 
 %type <addrs> actualParamList actualParamListTail
+
+%type <loop> loopHeader
 
 %type <type> type resultType 
 
@@ -670,21 +693,70 @@ openStructuredStmt
                                                         }
    ;
 loopHeader
-   : WHILE expr DO                          { if( ! $2->get_type()->is_bool() )
-	                                      ERRLOG << "expected a boolean condition in loop header: found " << *$2->get_type();
-                                            }
-   | FOR ID ASSIGN expr TO expr DO          { 
-                                              symdb::Var var($2, invalid_type);
-					      symdb::Sym_entry *entry = symtable.find( &var );
-					      if( entry == NULL )
-						ERRLOG << "undefined variable: " << $2;
-					      else if( entry->tag != symdb::VAR_TAG )
-						ERRLOG << $2 << " is not a variable name";
-					      else if( ! dynamic_cast<symdb::Var*>(entry->sym)->type->is_int() )
-						ERRLOG << "integer variable expected in for-loop header: found " << *dynamic_cast<symdb::Var*>(entry->sym);
-                                              if( ! $4->get_type()->is_int() || ! $6->get_type()->is_int() )
-						ERRLOG << "integer expressions expected in loop header: found '" << *$4->get_type() << " to " << *$6->get_type() << "'";
-                                            }
+   : WHILE                 {
+                             $<loop>$ = new Loop_labels(label_gen.gen_label(), label_gen.gen_label());
+			     cgen::Instr instr( cgen::Op::LABEL, NULL, NULL, create_addr($<loop>$->again) );
+			     codeout << instr; 
+                           }
+     expr
+     DO                    { if( ! $3->get_type()->is_bool() )
+	                       ERRLOG << "expected a boolean condition in loop header: found " << *$3->get_type();
+			     
+			     $$ = $<loop>2;
+			     cgen::Instr instr( cgen::Op::IF_FALSE_GOTO, $3, NULL, create_addr($$->stop) );
+			     codeout << instr;
+                           }
+   | FOR ID ASSIGN expr    {
+                             symdb::Var var($2, invalid_type);
+			     symdb::Sym_entry *entry = symtable.find( &var );
+			     symdb::Var *index_var = NULL;
+			     if( entry == NULL ) {
+			       ERRLOG << "undefined variable: " << $2;
+			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type);
+			     }
+			     else if( entry->tag != symdb::VAR_TAG ) {
+			       ERRLOG << $2 << " is not a variable name";
+			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type);
+			     }
+			     else {
+			       index_var = dynamic_cast<symdb::Var*>(entry->sym);
+			       if( ! index_var->type->is_int() ) {
+				 ERRLOG << "integer variable expected in for-loop header: found " << *index_var; } }
+			     
+			     cgen::Addr *index_addr = new cgen::Addr( index_var );
+			     $<addr>1 = index_addr;      // store the id address in 'for' ($1)
+			     cgen::Instr init_instr( cgen::Op::COPY, $4, NULL, index_addr );
+			     codeout << init_instr;
+
+			     // skip the incrementer (i++) in initialization of enumerated loop
+			     cgen::Label const *skip_incr_label = label_gen.gen_label();
+			     cgen::Addr * skip_incr_addr = create_addr( skip_incr_label );
+			     cgen::Instr skip_incr_instr( cgen::Op::GOTO, NULL, NULL, skip_incr_addr );
+			     codeout << skip_incr_instr;
+
+			     // issue the 'again' label
+			     $<loop>$ = new Loop_labels(label_gen.gen_label(), label_gen.gen_label());
+			     cgen::Instr again_instr( cgen::Op::LABEL, NULL, NULL, create_addr($<loop>$->again) );
+			     codeout << again_instr;
+
+			     // increment counter
+			     static symdb::Lit *_literal_one = new symdb::Lit("1");
+			     _literal_one->type = int_type;
+			     static cgen::Addr *_one = new cgen::Addr( _literal_one );
+			     cgen::Instr incr_instr( cgen::Op::PLUS, index_addr, _one, index_addr );
+			     codeout << incr_instr;
+			     
+			     cgen::Instr skipped_incr_label_instr( cgen::Op::LABEL, NULL, NULL, skip_incr_addr );
+			     codeout << skipped_incr_label_instr;
+                           }
+     TO expr DO            { 
+			     if( ! $4->get_type()->is_int() || ! $7->get_type()->is_int() )
+			       ERRLOG << "integer expressions expected in loop header: found '" << *$4->get_type() << " to " << *$7->get_type() << "'";
+			     
+			     $$ = $<loop>5;
+			     cgen::Instr break_instr( cgen::Op::IF_GT_GOTO, $<addr>1, resolve_addr($7), create_addr( $$->stop ) );
+			     codeout << break_instr;
+                           }
    ;
 simpleStmt
    : assignmentStmt                                     { LOG(ParserLog) << "   simpleStmt := assignmentStmt"; }

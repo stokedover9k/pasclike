@@ -125,23 +125,40 @@ namespace cgen
     case INDEXED_COPY: 
     case COPY_INDEXED:   
     case COMPONENT_COPY:
-    case COPY_COMPONENT: return true;
-    default:             return false; } }
+    case COPY_COMPONENT:
+    case Op::LT:
+    case Op::GT:
+    case Op::LE:
+    case Op::GE:
+    case Op::EQ:
+    case Op::NE:
+    case Op::IF_LT_GOTO:
+    case Op::IF_GT_GOTO:
+      return true;
+    default:
+      return false; } }
 
   bool Op::is_unary( Op::Opcode op ) {
     switch( op ) {
     case UMINUS:
     case NOT:
     case COPY:
-    case FUNCALL: return true;
-    default:      return false;  } }
+    case FUNCALL:
+    case Op::IF_TRUE_GOTO: 
+    case Op::IF_FALSE_GOTO: 
+      return true;
+    default:
+      return false;  } }
 
   bool Op::is_nonary( Op::Opcode op ) {
     switch( op ) {
     case PROCCALL:
     case LIT_ACCESS:
-    case VAR_ACCESS:   return true;
-    default:           return false; } }
+    case VAR_ACCESS:   
+    case GOTO:
+      return true;
+    default:
+      return false; } }
   
   //================== Instr ==================//
 
@@ -212,6 +229,17 @@ namespace cgen
     case Op::MOD:             return "%";
     case Op::AND:             return "&&";
     case Op::OR:              return "||";
+    case Op::LT:              return "<";
+    case Op::GT:              return ">";
+    case Op::LE:              return "<=";
+    case Op::GE:              return ">=";
+    case Op::EQ:              return "=";
+    case Op::NE:              return "<>";
+    case Op::IF_TRUE_GOTO:    return "if-true";
+    case Op::IF_FALSE_GOTO:   return "if-false";
+    case Op::IF_LT_GOTO:      return "if<";
+    case Op::IF_GT_GOTO:      return "if>";
+    case Op::GOTO:            return "goto";
     case Op::INDEXED_COPY:    return "[]=";
     case Op::COPY_INDEXED:    return "=[]";
     case Op::UMINUS:          return "-";
@@ -219,6 +247,7 @@ namespace cgen
     case Op::COPY:            return "copy";
     case Op::FUNCALL:         return "funcall";
     case Op::PROCCALL:        return "call";
+    case Op::LABEL:           return "";
     case Op::LIT_ACCESS:      return "accl";
     case Op::VAR_ACCESS:      return "accv";
     case Op::PUSH_PARAM:      return "param";
@@ -241,7 +270,13 @@ namespace cgen
       case Op::MINUS:
       case Op::MOD:
       case Op::AND:
-      case Op::OR:              os << *i.res << " := " 
+      case Op::OR:
+      case Op::LT:
+      case Op::GT:
+      case Op::LE:
+      case Op::GE:
+      case Op::EQ:
+      case Op::NE:              os << *i.res << " := " 
 				   << *i.arg1 
 				   << ' ' << to_string(i.op) << ' '
 				   << *i.arg2;                      break;
@@ -252,19 +287,34 @@ namespace cgen
       case Op::COPY_INDEXED:    os << *i.res << " := " << *i.arg1 
 				   << '[' << *i.arg2 << ']';        break;
 
-      case Op::COPY:            os << *i.res << " := " << *i.arg1;  break;
+      case Op::IF_LT_GOTO:      os << "if " 
+				   << *i.arg1 << " < " << *i.arg2
+				   << " goto " << *i.res;           break;
+      case Op::IF_GT_GOTO:      os << "if " 
+				   << *i.arg1 << " > " << *i.arg2
+				   << " goto " << *i.res;           break;
 
       case Op::NOT:             // standard unary ops
       case Op::UMINUS:
       case Op::FUNCALL:         os << *i.res << " := " 
 				   << to_string(i.op) << ' '
 				   << *i.arg1;                      break;
+
+      case Op::COPY:            os << *i.res << " := " << *i.arg1;  break;
+
+      case Op::IF_TRUE_GOTO:    os << "if true = " << *i.arg1
+				   << " goto " << *i.res;           break;
+      case Op::IF_FALSE_GOTO:   os << "if false = " << *i.arg1
+				   << " goto " << *i.res;           break;
+
       case Op::LIT_ACCESS:      os << *i.res
 				   << " ??? " << to_string(i.op);   break;
       case Op::VAR_ACCESS:      os << *i.res
 				   << " ??? " << to_string(i.op);   break;
 
       case Op::PROCCALL:        // standard nonary ops
+      case Op::LABEL:
+      case Op::GOTO:
       case Op::PUSH_PARAM:      os << to_string(i.op) << ' '
 				   << *i.res;                       break;
 
