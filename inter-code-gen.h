@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <ostream>
 #include <stdexcept>
+#include <utility>
 
 namespace cgen
 {
@@ -19,6 +20,7 @@ namespace cgen
   struct Instr;
   struct Operation;
   struct Label;
+  struct Expr;
 
   std::ostream& operator<< (std::ostream&, Tmp const&);
   std::ostream& operator<< (std::ostream&, Instr const&);
@@ -86,7 +88,7 @@ namespace cgen
       UMINUS, NOT, COPY, FUNCALL, PROCCALL,    // unary:   x = op y
       IF_TRUE_GOTO, IF_FALSE_GOTO,             //
       PUSH_PARAM, LABEL,                       // nonary:  x
-      GOTO,
+      GOTO,                                    //
       LIT_ACCESS, VAR_ACCESS                   //
     }; 
     
@@ -169,8 +171,26 @@ namespace cgen
     static Label::id_type const INVALID_ID; 
   }; //------- end Label_gen -------//
 
-  //========= Helpers ===========//
+  //============ Expr ==============//
+  struct Expr {                     //
+  //================================//
+    Expr( Addr * );
+    Expr( Expr const & );
+
+    Addr *addr;
+    bool is_bool() const;
+    Type * get_type() const;
+    Label const * get_branch( bool ) const;
+    Label const * set_branch( bool, Label const * );
+    void flip_branches();
+    
+  private:
+    Label const * label_true;
+    Label const * label_false;
+  };
   
+  //============ Helpers ===========//
+
   char const * const to_string( Op::Opcode );
   
 };

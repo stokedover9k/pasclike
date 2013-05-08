@@ -218,6 +218,37 @@ namespace cgen
 
   Tmp::id_type const Tmp_gen::INVALID_ID = 0;
 
+  //================== Expr ====================//
+
+  Expr::Expr( Addr *a ) : addr(a), label_true(NULL), label_false(NULL) { }
+
+  Expr::Expr( Expr const& e ) :
+    addr(e.addr), 
+    label_true(e.label_true), 
+    label_false(e.label_false) { }
+
+  bool Expr::is_bool() const {
+    return addr->get_type()->is_bool(); }
+
+  Type * Expr::get_type() const { 
+    return addr->get_type(); }
+
+  Label const * Expr::get_branch( bool b ) const {
+    if( is_bool() || !get_type()->is_valid() )
+      return b ? label_true : label_false;
+    throw std::logic_error("Expr::get_branch: not a boolean expr");
+  }
+
+  Label const * Expr::set_branch( bool b, Label const * l ) {
+    if( is_bool() || !get_type()->is_valid() )
+      return b ? (label_true=l) : (label_false=l);
+    throw std::logic_error("Expr::set_branch: not a boolean expr");
+  }
+
+  void Expr::flip_branches() {
+    std::swap(label_true, label_false);
+  }
+
   //=================== IO =====================//
 
   char const * const to_string( Op::Opcode o ) {

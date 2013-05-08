@@ -28,8 +28,6 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
 #include "symtable.h"
 
  symdb::Sym_table symtable;
- symdb::Invalid_type *invalid_type = new symdb::Invalid_type();
- symdb::Int_type *int_type = new symdb::Int_type();
  cgen::Tmp_gen tmp_gen;
  cgen::Label_gen label_gen;
  std::ostream& codeout(std::cout);
@@ -270,6 +268,19 @@ int yyerror( const char *p ) { ERRLOG << p; }
    }
  }
 
+ Op_tag opposite_rel( Op_tag o ) {
+   switch(o) {
+   case LT_OP:      return GE_OP;
+   case LE_OP:      return GT_OP;
+   case GT_OP:      return LE_OP;
+   case GE_OP:      return LT_OP;
+   case EQ_OP:      return NE_OP;
+   case NE_OP:      return EQ_OP;
+   default:
+     std::invalid_argument("opposite_rel: op is not a rel-op");
+   }
+ }
+
  %}
 
 %code requires {
@@ -278,6 +289,12 @@ int yyerror( const char *p ) { ERRLOG << p; }
   #include "inter-code-gen.h"
 
   extern symdb::Sym_table symtable;
+
+  extern symdb::Invalid_type *invalid_type;
+  extern symdb::Int_type *int_type;
+  extern symdb::Bool_type *bool_type;
+  extern symdb::Var *bool_true;
+  extern symdb::Var *bool_false;
 
   #ifndef __ATTRIB_STRUCTS_DEF__
   #define __ATTRIB_STRUCTS_DEF__
@@ -301,6 +318,7 @@ int yyerror( const char *p ) { ERRLOG << p; }
 %union {
   cgen::Addr             *addr;
   std::list<cgen::Addr*> *addrs;
+  cgen::Expr             *expr;
   Loop_labels *loop;
   char const *lexeme;
   symdb::Type *type;
@@ -336,13 +354,13 @@ int yyerror( const char *p ) { ERRLOG << p; }
 %type <ids> identifierList identifierListTail
 
 %type <addr> variable componentSelection
-%type <addr> factor factorList 
-%type <addr> term termList 
-%type <addr> simpleExpr expr
+
+%type <expr> factor factorList 
+%type <expr> term termList 
+%type <expr> simpleExpr expr
+%type <expr> loopHeader
 
 %type <addrs> actualParamList actualParamListTail
-
-%type <loop> loopHeader
 
 %type <type> type resultType 
 
@@ -490,13 +508,13 @@ formalParamListTail
 actualParamList
    : expr actualParamListTail               { LOG(ParserLog) << "   actualParamList := expr actualParamListTail"; 
                                               $$ = $2;
-					      $$->push_front( resolve_addr($1) );
+					      $$->push_front( resolve_addr($1->addr) );
                                             }
    | /* empty */                            { $$ = new std::list<cgen::Addr*>(); }
    ;
 actualParamListTail
    : actualParamListTail ',' expr           { $$ = $1;
-                                              $$->push_back( resolve_addr($3) );
+                                              $$->push_back( resolve_addr($3->addr) );
                                             }
    | /* empty */                            { $$ = new std::list<cgen::Addr*>(); }
    ;
@@ -593,7 +611,7 @@ componentSelection
 						  $$ = $1;  // do nothing - error was laredy reported
 						else if( $1->get_type()->is_array() ) {
 						  symdb::Type *new_type = dynamic_cast<symdb::Array_type*>($1->get_type())->base_type;
-						  cgen::Addr  *expr_addr = $3;   // TODO: get address from expr
+						  cgen::Addr  *expr_addr = $3->addr;   // TODO: get address from expr
 						  
 						  cgen::Addr *resolved_base   = resolve_addr( $1 );         // already resolved or returns a new resolved address
 						  cgen::Addr *resolved_index  = resolve_addr( expr_addr );
@@ -693,69 +711,75 @@ openStructuredStmt
                                                         }
    ;
 loopHeader
-   : WHILE                 {
-                             $<loop>$ = new Loop_labels(label_gen.gen_label(), label_gen.gen_label());
-			     cgen::Instr instr( cgen::Op::LABEL, NULL, NULL, create_addr($<loop>$->again) );
-			     codeout << instr; 
+   : WHILE                 { // while(1) {$<addr>2:label_A} expr-x(3) do(4)
+			     cgen::Addr *again_addr = create_addr( label_gen.gen_label() );
+			     codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, again_addr );               // INSTR: Label_A   # again - check condition
+			     $<addr>$ = again_addr;
                            }
-     expr
-     DO                    { if( ! $3->get_type()->is_bool() )
+     expr DO               { if( ! $3->get_type()->is_bool() )
 	                       ERRLOG << "expected a boolean condition in loop header: found " << *$3->get_type();
+
+			     cgen::Addr * again_branch = $<addr>2;                               // Label: A   # again - check condition
+			     cgen::Addr * break_branch = create_addr( label_gen.gen_label() );   // Label: E   # end   - break out of loop
+			     cgen::Addr * x_addr = $3->addr;                                     // expr-x
+
+			     static cgen::Addr * expr_addr = create_addr( bool_type );
 			     
-			     $$ = $<loop>2;
-			     cgen::Instr instr( cgen::Op::IF_FALSE_GOTO, $3, NULL, create_addr($$->stop) );
-			     codeout << instr;
+			     $$ = new cgen::Expr( expr_addr );
+			     $$->set_branch( true,  again_branch->get_label() );
+			     $$->set_branch( false, break_branch->get_label() );
+
+			     codeout << cgen::Instr( cgen::Op::IF_FALSE_GOTO, x_addr, NULL, break_branch );   // INSTR:          if x = false goto E
+			     //                                                                                                    ... loop body ...
+			     //                                                     needed after loop body                       goto A
+			     //                                                                                         Label_E
                            }
-   | FOR ID ASSIGN expr    {
+
+   | FOR ID ASSIGN         { // for(1) id-x(2) :=(3) {$<addr>4:ind_var} expr-y(5) to(6) expr-z(7) do(8)
                              symdb::Var var($2, invalid_type);
 			     symdb::Sym_entry *entry = symtable.find( &var );
 			     symdb::Var *index_var = NULL;
 			     if( entry == NULL ) {
 			       ERRLOG << "undefined variable: " << $2;
-			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type);
-			     }
+			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type); }
 			     else if( entry->tag != symdb::VAR_TAG ) {
 			       ERRLOG << $2 << " is not a variable name";
-			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type);
-			     }
+			       index_var = new symdb::Var("!___UNKNOWN_VAR___", invalid_type); }
 			     else {
 			       index_var = dynamic_cast<symdb::Var*>(entry->sym);
 			       if( ! index_var->type->is_int() ) {
-				 ERRLOG << "integer variable expected in for-loop header: found " << *index_var; } }
-			     
-			     cgen::Addr *index_addr = new cgen::Addr( index_var );
-			     $<addr>1 = index_addr;      // store the id address in 'for' ($1)
-			     cgen::Instr init_instr( cgen::Op::COPY, $4, NULL, index_addr );
-			     codeout << init_instr;
-
-			     // skip the incrementer (i++) in initialization of enumerated loop
-			     cgen::Label const *skip_incr_label = label_gen.gen_label();
-			     cgen::Addr * skip_incr_addr = create_addr( skip_incr_label );
-			     cgen::Instr skip_incr_instr( cgen::Op::GOTO, NULL, NULL, skip_incr_addr );
-			     codeout << skip_incr_instr;
-
-			     // issue the 'again' label
-			     $<loop>$ = new Loop_labels(label_gen.gen_label(), label_gen.gen_label());
-			     cgen::Instr again_instr( cgen::Op::LABEL, NULL, NULL, create_addr($<loop>$->again) );
-			     codeout << again_instr;
-
-			     // increment counter
-			     static symdb::Lit *_literal_one = new symdb::Lit("1");
-			     _literal_one->type = int_type;
-			     static cgen::Addr *_one = new cgen::Addr( _literal_one );
-			     cgen::Instr incr_instr( cgen::Op::PLUS, index_addr, _one, index_addr );
-			     codeout << incr_instr;
-			     
-			     cgen::Instr skipped_incr_label_instr( cgen::Op::LABEL, NULL, NULL, skip_incr_addr );
-			     codeout << skipped_incr_label_instr;
+				 ERRLOG << "integer variable expected in for-loop header: found " << *index_var; 
+				 index_var = new symdb::Var("!___UKNOWN_VAR___", invalid_type); } }
+			     $<addr>$ = new cgen::Addr( index_var );
                            }
-     TO expr DO            { 
-			     if( ! $4->get_type()->is_int() || ! $7->get_type()->is_int() )
-			       ERRLOG << "integer expressions expected in loop header: found '" << *$4->get_type() << " to " << *$7->get_type() << "'";
+     expr TO expr DO       { 
+			     if( ! $5->get_type()->is_int() || ! $7->get_type()->is_int() )
+			       ERRLOG << "integer expressions expected in loop header: found '" << *$5->get_type() << " to " << *$7->get_type() << "'";
+
+			     // loop initialization
+			     cgen::Addr *x_addr = $<addr>4;
+                             cgen::Addr *y_addr = resolve_addr( $5->addr );
+			     cgen::Addr *z_addr = resolve_addr( $7->addr );
+
+			     cgen::Addr *begin_addr = create_addr( label_gen.gen_label() );      // Label: B   # begin loop - enter for the first time
+			     cgen::Addr *again_addr = create_addr( label_gen.gen_label() );      // Label: A   # again - increment index and check condition
+			     cgen::Addr *break_addr = create_addr( label_gen.gen_label() );      // Label: E   # end - break out of the loop
+			     static cgen::Addr *expr_addr = create_addr( bool_type );
+			     static cgen::Addr *one_addr  = create_addr( (symdb::Lit* l = symdb::Lit("1"), l->type = int_type, l) );
+
+			     $$ = new cgen::Expr( expr_addr );
+			     $$->set_branch( true,  again_addr );
+			     $$->set_branch( false, break_addr );
 			     
-			     $$ = $<loop>5;
-			     cgen::Instr break_instr( cgen::Op::IF_GT_GOTO, $<addr>1, resolve_addr($7), create_addr( $$->stop ) );
-			     codeout << break_instr;
+			     codeout << cgen::Instr( cgen::Op::COPY,        y_addr,  NULL,      x_addr     );    // INSTR:          x = y
+			     codeout << cgen::Instr( cgen::Op::GOTO,        NULL,    NULL       begin_addr );    // INSTR:          goto Label_B
+			     codeout << cgen::Instr( cgen::Op::LABEL,       NULL,    NULL,      again_addr );    // INSTR: Label_A
+			     codeout << cgen::Instr( cgen::Op::PLUS,        x_addr,  one_addr,  x_addr     );    // INSTR:          x = x + 1
+			     codeout << cgen::Instr( cgen::Op::LABEL,       NULL,    NULL,      begin_addr );    // INSTR: Label_B
+			     codeout << cgen::Instr( cgen::Op::IF_GT_GOTO,  x_addr,  z_addr,    break_addr );    // INSTR:          if x > z goto E
+			     //                                                                                                       ... loop body ...
+			     //                                                         needed after loop body:                     goto A
+			     //                                                                                            Label_E
                            }
    ;
 simpleStmt
@@ -818,104 +842,120 @@ stmtSequenceTail
    ;
     //===================================================================
 expr
-   : simpleExpr relOp simpleExpr      { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";      
+   : simpleExpr relOp simpleExpr
+                              { LOG(ParserLog) << "   expr := simpleExpr relOp simpleExpr";      
 
-					symdb::Type *arg1_type = $1->get_type();
-					symdb::Type *arg2_type = $3->get_type();
-					cgen::Addr *arg1 = resolve_addr( $1 );
-					cgen::Addr *arg2 = resolve_addr( $3 );
+				cgen::Addr *addr1 = resolve_addr( $1->addr );
+				cgen::Addr *addr2 = resolve_addr( $3->addr );
+				if( addr1 != $1->addr )    $1 = new cgen::Expr( addr1 );
+				if( addr2 != $3->addr )    $3 = new cgen::Expr( addr2 );
 					
-					symdb::Type *type = result_of_op( arg1_type, $2, arg2_type );
+				symdb::Type *type = result_of_op( $1->get_type(), $2, $3->get_type() );
 
-					if( type == NULL ) {
-					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) 
-						 << ". Found: " << *arg1_type << ", " << *arg2_type;
-					  type = invalid_type; }
-
-					$$ = create_addr( type );
-					cgen::Op::Opcode op = op_to_opcode( $2 );
-					cgen::Instr instr( op, arg1, arg2, $$ );
-					cout << instr;
-                                      }
-   | simpleExpr                       { LOG(ParserLog) << "   expr := simpleExpr";
-                                        $$ = $1;
-                                      }
-   ;
-simpleExpr
-   : 
-     /*
-     sign termList                    { LOG(ParserLog) << "   simpleExpr := sign termList";
-
-					symdb::Type *operand_type = $2->get_type();
-					cgen::Addr  *operand_addr = $2;
-					cgen::Addr  *addr;
-					symdb::Type *result_type = result_of_op( NULL, $1, operand_type );
-
-					if( result_type == NULL ) {
-					  ERRLOG << "cannot apply unary " << op_to_string($1) << " to type: " << *operand_type;
-					  result_type = invalid_type; }
-
-					if( $1 == MINUS_OP ) {
-					  addr = create_addr( result_type );
-					  cgen::Instr instr( cgen::Op::UMINUS, operand_addr, NULL, addr );
-					  codeout << instr; }
-					else { addr = $2; }
-					$$ = addr;
-                                      }
-				      | 
-     */
-     termList                         { LOG(ParserLog) << "   simpleExpr := termList";
-                                        $$ = $1;
-                                      }
-   ;
-termList
-   : termList addOp term              { symdb::Type *type = result_of_op( $1->get_type(), $2, $3->get_type() );
-
-                                        if( type == NULL ) {
-					  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) 
-						 << ". Found: " << *$1->get_type() << ", " << *$3->get_type();
-					  type = invalid_type; }
-					
-					cgen::Addr *addr = create_addr( type );
-					cgen::Op::Opcode op = op_to_opcode($2);
-					cgen::Instr instr( op, $1, $3, addr );
-					codeout << instr;
-					
-					$$ = addr;
-                                      }
-   | term                             { $$ = $1; }
-   ;
-term
-   : factorList                       { LOG(ParserLog) << "   term := factorList";  
-                                        $$ = $1;
-                                      }
-   ;
-factorList
-   : factorList mulOp factor  { symdb::Type *type = result_of_op( $1->get_type(), $2, $3->get_type() );
-
-                                if( type == NULL ) {
+				if( type == NULL ) {
 				  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << *$1->get_type() << ", " << *$3->get_type();
 				  type = invalid_type; }
 
-				cgen::Addr *addr = create_addr( type );
-				cgen::Op::Opcode op = op_to_opcode($2);
-				cgen::Instr instr( op, $1, $3, addr);
-				codeout << instr;
+				$$ = new cgen::Expr( create_addr( type ) );
+				$$->set_branch( true,  label_gen.gen_label() );
+				$$->set_branch( false, label_gen.gen_label() );
 
-				$$ = addr;
+				cgen::Op::Opcode op = op_to_opcode( $2 );
+				codeout << cgen::Instr( op, $1->addr, $3->addr, $$->addr );
+                              }
+   | simpleExpr               { LOG(ParserLog) << "   expr := simpleExpr";
+                                $$ = $1;
+                              }
+   ;
+simpleExpr
+   : termList                 { LOG(ParserLog) << "   simpleExpr := termList";
+                                $$ = $1;
+                              }
+   ;
+termList
+   : termList addOp           { $<expr>$ = NULL;
+                                if( $2 == OR_OP ) {      //--- bool expr: x = y or z
+				  $<expr>$ = $1;         //--- short-circuit: ifTrue y goto L_true
+				  $<expr>$->set_branch( false, label_gen.gen_label() );
+				  $<expr>$->set_branch( true,  label_gen.gen_label() );
+				  cgen::Instr instr( cgen::Op::IF_TRUE_GOTO, $<expr>$->addr, create_addr( $<expr>$->get_branch(true) ), NULL );
+				  codeout << instr;
+				}
+                              }
+     term                     { symdb::Type *type = result_of_op( $1->get_type(), $2, $4->get_type() );
+
+                                if( type == NULL ) {
+				  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << *$1->get_type() << ", " << *$4->get_type();
+				  type = invalid_type; }
+				    
+				if( $<expr>3 == NULL ) { //------ normal expression: x = y addOp z
+				  $$ = new cgen::Expr( create_addr( type ) );
+				  cgen::Op::Opcode op = op_to_opcode($2);
+				  codeout << cgen::Instr( op, $1->addr, $4->addr, $$->addr );
+				}
+				else { //----- boolean expression: x = y or z -----//
+				  $$ = new cgen::Expr( create_addr( bool_type ) );
+				  cgen::Addr *false_addr = create_addr( $<expr>2->get_branch(false) );
+				  cgen::Addr *true_addr  = create_addr( $<expr>2->get_branch(true ) );
+				  cgen::Addr *end_addr   = create_addr( label_gen.gen_label() );
+				  
+				  codeout << cgen::Instr( cgen::Op::IF_FALSE_GOTO, $4->addr, NULL, false_addr );      // INSTR: if_false z.t goto L_false
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, true_addr );                   // INSTR: Label: L_true
+				  codeout << cgen::Instr( cgen::Op::COPY, create_addr( bool_true ), NULL, $$->addr ); // INSTR: x.t = true
+				  codeout << cgen::Instr( cgen::Op::GOTO, NULL, NULL, end_addr );                     // INSTR: goto L_end
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, false_addr );                  // INSTR: Label: L_false
+				  codeout << cgen::Instr( cgen::Op::COPY, false_addr, NULL, $$->addr );               // INSTR: x.t = false
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, end_addr );                    // INSTR: Label: L_end
+				}
+                              }
+   | term                     { $$ = $1; }
+   ;
+term
+   : factorList               { LOG(ParserLog) << "   term := factorList";  
+                                $$ = $1;
+                              }
+   ;
+factorList
+   : factorList mulOp         { $<expr>$ = NULL;
+                                if( $2 == AND_OP ) {     //--- bool expr: x = y and z
+				  $<expr>$ = $1;         //--- short-circuit: ifFalse y goto L_false
+				  $<expr>$->set_branch( false, label_gen.gen_label() );
+				  $<expr>$->set_branch( true,  label_gen.gen_label() );
+				  codeout << cgen::Instr( cgen::Op::IF_FALSE_GOTO, $<expr>$->addr, create_addr( $<expr>$->get_branch(false) ), NULL );
+				}
+                              }
+     factor                   { symdb::Type *type = result_of_op( $1->get_type(), $2, $4->get_type() );
+       
+                                if( type == NULL ) {
+				  ERRLOG << "unexpected type of arguments of operator " << op_to_string($2) << ". Found: " << *$1->get_type() << ", " << *$4->get_type();
+				  type = invalid_type; }
+
+				if( $<expr>3 == NULL ) { //------ normal expression: x = y mulOp z
+				  $$ = new cgen::Expr( create_addr( type ) );
+				  cgen::Op::Opcode op = op_to_opcode($2);
+				  codeout << cgen::Instr( op, $1->addr, $4->addr, $$->addr );
+				}
+				else { //----- boolean expression: x = y and z -----//
+				  $$ = new cgen::Expr( create_addr( bool_type ) );
+				  cgen::Addr *false_addr = create_addr( $<expr>2->get_branch(false) );
+				  cgen::Addr *true_addr  = create_addr( $<expr>2->get_branch(true ) );
+				  cgen::Addr *end_addr   = create_addr( label_gen.gen_label() );
+				  
+				  codeout << cgen::Instr( cgen::Op::IF_FALSE_GOTO, $4->addr, NULL, false_addr );      // INSTR: if_false z.t goto L_false
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, true_addr );                   // INSTR: Label: L_true
+				  codeout << cgen::Instr( cgen::Op::COPY, create_addr( bool_true ), NULL, $$->addr ); // INSTR: x.t = true
+				  codeout << cgen::Instr( cgen::Op::GOTO, NULL, NULL, end_addr );                     // INSTR: goto L_end
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, false_addr );                  // INSTR: Label: L_false
+				  codeout << cgen::Instr( cgen::Op::COPY, false_addr, NULL, $$->addr );               // INSTR: x.t = false
+				  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, end_addr );                    // INSTR: Label: L_end
+				}
                               }
    | factor                   { $$ = $1; }
    ;
 factor
-   : INTEGER                { LOG(ParserLog) << "   factor := int";
-                              cgen::Addr *addr = create_addr( $1 );  // TODO: assign to factor
-                              $$ = addr;    }
-   | STRING                 { LOG(ParserLog) << "   factor := string";
-                              cgen::Addr *addr = create_addr( $1 );  // TODO: assign to factor
-                              $$ = addr;    }
-   | variable               { LOG(ParserLog) << "   factor := variable";
-                              cgen::Addr *addr = $1;                 // TODO: assign to factor
-                              $$ = $1;    }
+   : INTEGER                { LOG(ParserLog) << "   factor := int";         $$ = new cgen::Expr( create_addr( $1 ) );    }
+   | STRING                 { LOG(ParserLog) << "   factor := string";      $$ = new cgen::Expr( create_addr( $1 ) );    }
+   | variable               { LOG(ParserLog) << "   factor := variable";    $$ = new cgen::Expr( $1 );                   }
    | functionReference      { LOG(ParserLog) << "   factor := functionReference";
                                                                      // TODO: assign to factor - function???
                               symdb::Type *return_type = $1 == NULL ? invalid_type : $1->return_type;
@@ -925,11 +965,13 @@ factor
 			      cgen::Instr instr( cgen::Op::FUNCALL, func_addr, NULL, addr );
 			      codeout << instr;
 
-                              $$ = addr; }
+			      cgen::Expr *expr = new cgen::Expr( addr );
+
+                              $$ = expr; }
    | NOT factor             { LOG(ParserLog) << "   factor := not factor";
 
 			      symdb::Type *operand_type = $2->get_type();
-			      cgen::Addr *operand_addr = $2;
+			      cgen::Addr *operand_addr = $2->addr;
 			      symdb::Type *result_type = result_of_op( NULL, NOT_OP, operand_type );
 
 			      if( result_type == NULL ) {
@@ -939,13 +981,16 @@ factor
 			      cgen::Addr *addr = create_addr( result_type );
 			      cgen::Instr instr( cgen::Op::NOT, operand_addr, NULL, addr );
 			      codeout << instr;
-			      $$ = addr;
+
+			      $$ = $2;
+			      $$->addr = addr;
+			      $$->flip_branches();
                             }
    | sign factor            { LOG(ParserLog) << "   factor := sign factor";
 
 			      symdb::Type *operand_type = $2->get_type();
-			      cgen::Addr  *operand_addr = $2;
-			      cgen::Addr  *addr;
+			      cgen::Addr  *operand_addr = $2->addr;
+			      cgen::Expr  *expr;
 			      symdb::Type *result_type = result_of_op( NULL, $1, operand_type );
 
 			      if( result_type == NULL ) {
@@ -953,15 +998,14 @@ factor
 				result_type = invalid_type; }
 
 			      if( $1 == MINUS_OP ) {
-				addr = create_addr( result_type );
-				cgen::Instr instr( cgen::Op::UMINUS, operand_addr, NULL, addr );
+				expr = new cgen::Expr( create_addr( result_type ) );
+				cgen::Instr instr( cgen::Op::UMINUS, operand_addr, NULL, expr->addr );
 				codeout << instr; }
-			      else { addr = $2; }
-			      $$ = addr;
+			      else { expr = $2; }
+			      $$ = expr;
                             }
    | '(' expr ')'           { LOG(ParserLog) << "   factor := ( expr )";
-                              cgen::Addr *addr = $2; // TODO: assign expr directly to factor
-                              $$ = addr; }
+                              $$ = $2; }
    ;
 functionReference
    : ID '(' actualParamList ')'       { symdb::Func func( $1 );
