@@ -281,6 +281,11 @@ int yyerror( const char *p ) { ERRLOG << p; }
    }
  }
 
+ void gen_loop_ending( cgen::Expr *loop_header ) {
+   codeout << cgen::Instr( cgen::Op::GOTO, NULL, NULL, create_addr( loop_header->get_branch(true) ) );
+   codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, create_addr( loop_header->get_branch(false) ) );
+ }
+
  %}
 
 %code requires {
@@ -292,6 +297,7 @@ int yyerror( const char *p ) { ERRLOG << p; }
 
   extern symdb::Invalid_type *invalid_type;
   extern symdb::Int_type *int_type;
+  extern symdb::String_type *string_type;
   extern symdb::Bool_type *bool_type;
   extern symdb::Var *bool_true;
   extern symdb::Var *bool_false;
@@ -354,6 +360,7 @@ int yyerror( const char *p ) { ERRLOG << p; }
 %type <ids> identifierList identifierListTail
 
 %type <addr> variable componentSelection
+%type <addr> ifThenHeader ifThenElseHeader
 
 %type <expr> factor factorList 
 %type <expr> term termList 
@@ -693,23 +700,37 @@ openStmt
    ;
 closedStructuredStmt
    : compoundStmt                                       { LOG(ParserLog) << "   closeStmt := compoundStmt"; }
-   | loopHeader closedStmt                              { LOG(ParserLog) << "   closeStmt := loopHeader closedStmt"; }
-   | IF expr THEN closedStmt ELSE closedStmt            { LOG(ParserLog) << "   closeStmt := if expr then closedStmt else closedStmt"; 
-                                                          if( ! $2->get_type()->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
-                                                        }
+   | loopHeader closedStmt                              { LOG(ParserLog) << "   closeStmt := loopHeader closedStmt"; 
+                                                          gen_loop_ending($1); }
+   | ifThenElseHeader
+     closedStmt                  { LOG(ParserLog) << "   closeStmt := if expr then closedStmt else closedStmt";    // gen:        [ false-branch-code ]
+                                   codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, $1 );                      // INSTR: L_e:
+                                 }
    ;
 openStructuredStmt
-   : loopHeader openStmt                                { LOG(ParserLog) << "   openStmt := loopHeader openStmt"; }
-   | IF expr THEN closedStmt ELSE openStmt              { LOG(ParserLog) << "   openStmt := if expr then closedStmt else openStmt";
-                                                          if( ! $2->get_type()->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
-                                                        }
-   | IF expr THEN stmt                                  { LOG(ParserLog) << "   openStmt := if expr then stmt";
-                                                          if( ! $2->get_type()->is_bool() )
-							    ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
-                                                        }
+   : loopHeader openStmt        { LOG(ParserLog) << "   openStmt := loopHeader openStmt";
+                                  gen_loop_ending($1); }
+   | ifThenElseHeader openStmt  { LOG(ParserLog) << "   openStmt := if expr then closedStmt else openStmt";
+                                  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, $1 );   // INSTR: L_e:
+                                }
+   | ifThenHeader stmt          { LOG(ParserLog) << "   openStmt := if expr then stmt";
+                                  codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, $1 );   // INSTR: L_f (a.k.a. L_e):
+                                }
    ;
+ifThenHeader
+   : IF expr THEN          { // ifThenHeader holds the address of the false-branch label
+                             if( ! $2->get_type()->is_bool() )
+			       ERRLOG << "boolean expression expected as if-condition: found " << *$2->get_type();
+			     $$ = create_addr( label_gen.gen_label() );
+			     codeout << cgen::Instr( cgen::Op::IF_FALSE_GOTO, $2->addr, NULL, $<addr>$ );    // INSTR:      ifFalse expr goto L_e
+                           }
+ifThenElseHeader
+   : ifThenHeader
+     closedStmt ELSE       { // ifThenElseHeader holds the address of end label (after both branches)
+                             $<addr>$ = create_addr( label_gen.gen_label() );                                // gen:        [ true-branch-code ]
+			     codeout << cgen::Instr( cgen::Op::GOTO, NULL, NULL, $<addr>$ );                 // INSTR:      goto L_e    # go to the end
+			     codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, $1 );                      // INSTR: L_f:
+                           }
 loopHeader
    : WHILE                 { // while(1) {$<addr>2:label_A} expr-x(3) do(4)
 			     cgen::Addr *again_addr = create_addr( label_gen.gen_label() );
@@ -765,14 +786,14 @@ loopHeader
 			     cgen::Addr *again_addr = create_addr( label_gen.gen_label() );      // Label: A   # again - increment index and check condition
 			     cgen::Addr *break_addr = create_addr( label_gen.gen_label() );      // Label: E   # end - break out of the loop
 			     static cgen::Addr *expr_addr = create_addr( bool_type );
-			     static cgen::Addr *one_addr  = create_addr( (symdb::Lit* l = symdb::Lit("1"), l->type = int_type, l) );
+			     static cgen::Addr *one_addr  = create_addr( new symdb::Lit("1", int_type) );
 
 			     $$ = new cgen::Expr( expr_addr );
-			     $$->set_branch( true,  again_addr );
-			     $$->set_branch( false, break_addr );
+			     $$->set_branch( true,  again_addr->get_label() );
+			     $$->set_branch( false, break_addr->get_label() );
 			     
 			     codeout << cgen::Instr( cgen::Op::COPY,        y_addr,  NULL,      x_addr     );    // INSTR:          x = y
-			     codeout << cgen::Instr( cgen::Op::GOTO,        NULL,    NULL       begin_addr );    // INSTR:          goto Label_B
+			     codeout << cgen::Instr( cgen::Op::GOTO,        NULL,    NULL,      begin_addr );    // INSTR:          goto Label_B
 			     codeout << cgen::Instr( cgen::Op::LABEL,       NULL,    NULL,      again_addr );    // INSTR: Label_A
 			     codeout << cgen::Instr( cgen::Op::PLUS,        x_addr,  one_addr,  x_addr     );    // INSTR:          x = x + 1
 			     codeout << cgen::Instr( cgen::Op::LABEL,       NULL,    NULL,      begin_addr );    // INSTR: Label_B
@@ -791,6 +812,12 @@ assignmentStmt
    : variable ASSIGN expr                               { LOG(ParserLog) << "   assignmentStmt := variable := expr"; 
                                                           if( type_equivalence( $1->get_type(), $3->get_type() ) == NULL )
 							    ERRLOG << "cannot assign expression of type " << *$3->get_type() << " to " << *$1;
+
+							  if( $1->get_resolution_type() != cgen::Addr::NONE &&
+							      $3->addr->get_resolution_type() != cgen::Addr::NONE )
+							    $3->addr = resolve_addr( $3->addr );
+
+							  codeout << cgen::Instr( cgen::Op::COPY, $3->addr, NULL, $1 );
                                                         }
    ;
 procedureStmt

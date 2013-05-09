@@ -149,8 +149,9 @@ namespace cgen
   private:
     typedef size_t id_type;
     id_type id;
+    std::string text;
     Label();
-    Label(id_type);
+    Label(id_type, std::string = "");
     friend class Label_gen;
     friend std::ostream& operator<< (std::ostream&, Label const&);
   }; //-------- end Label ----------//
@@ -160,6 +161,7 @@ namespace cgen
   //================================//
     Label_gen();
     Label const * gen_label();
+    Label const * gen_label(std::string const& name);
 
   private:
     struct Label_hash { size_t operator() (Label const& t) const; };

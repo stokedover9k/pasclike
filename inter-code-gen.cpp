@@ -189,7 +189,7 @@ namespace cgen
   //================= Label ===================//
 
   Label::Label() { }
-  Label::Label(id_type _id) : id(_id) { }
+  Label::Label(id_type _id, std::string _text) : id(_id), text(_text) { }
   bool Label::operator== (Label const& l) const { return l.id == id; }
 
   //=============== Label_gen =================//
@@ -198,6 +198,10 @@ namespace cgen
 
   Label const * Label_gen::gen_label() {
     auto p = labels.insert( Label(++last_id) );
+    return &*p.first; }
+
+  Label const * Label_gen::gen_label(std::string const& name) {
+    auto p = labels.insert( Label(++last_id, name) );
     return &*p.first; }
 
   size_t Label_gen::Label_hash::operator() (Label const& l) const {
@@ -290,7 +294,9 @@ namespace cgen
     os << "t_" << t.id;  return os; }
 
   std::ostream& operator<< (std::ostream& os, Label const& l) {
-    os << "LABEL_" << l.id;  return os; }
+    if( l.text.length() > 0 )  os << l.text << ": ";
+    else                       os << "L_" << l.id;
+    return os; }
   
   std::ostream& operator<< (std::ostream& os, Instr const& i) {
     switch( i.op )

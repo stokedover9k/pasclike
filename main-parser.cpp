@@ -17,12 +17,14 @@ extern symdb::Sym_table symtable;
 
 extern symdb::Invalid_type *invalid_type;
 extern symdb::Int_type *int_type;
+extern symdb::String_type *string_type;
 extern symdb::Bool_type *bool_type;
 extern symdb::Var *bool_true;
 extern symdb::Var *bool_false;
 
 symdb::Invalid_type *invalid_type = new symdb::Invalid_type();
 symdb::Int_type *int_type = new symdb::Int_type();
+symdb::String_type *string_type = new symdb::String_type();
 symdb::Bool_type *bool_type = new symdb::Bool_type();
 symdb::Var *bool_true = new symdb::Var( "true", bool_type );
 symdb::Var *bool_false = new symdb::Var( "false", bool_type );
@@ -31,10 +33,9 @@ void init_symtable()
 {
   using namespace symdb;
 
-  Type *bool_type = new Bool_type();
   symtable.put( bool_type );
   symtable.put( int_type );
-  symtable.put( new String_type() );
+  symtable.put( string_type );
   
   symtable.put( bool_true );
   symtable.put( bool_false );

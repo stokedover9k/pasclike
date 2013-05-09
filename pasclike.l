@@ -52,9 +52,9 @@ RELOP         >=?|<[>=]?|=
   /************* Numbers **********************/
 
   /* backup: lexeme = lexemeDup(); //*/
-{INTEGER}      { LOG(ScannerLog) << "INTEGER    " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Int_type();      return INTEGER;   }
-{DECIMAL}      { LOG(ScannerLog) << "DECIMAL    " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Invalid_type();  return DECIMAL;   }
-{EXPONENTIAL}  { LOG(ScannerLog) << "EXPNUMBER  " << yytext;  yylval.lit = new symdb::Lit(yytext);  yylval.lit->type = new symdb::Invalid_type();  return EXPNUMBER; }
+{INTEGER}      { LOG(ScannerLog) << "INTEGER    " << yytext;  yylval.lit = new symdb::Lit(yytext, int_type);      return INTEGER;   }
+{DECIMAL}      { LOG(ScannerLog) << "DECIMAL    " << yytext;  yylval.lit = new symdb::Lit(yytext, invalid_type);  return DECIMAL;   }
+{EXPONENTIAL}  { LOG(ScannerLog) << "EXPNUMBER  " << yytext;  yylval.lit = new symdb::Lit(yytext, invalid_type);  return EXPNUMBER; }
 
   /************* Relational Operators *********/
 
@@ -110,12 +110,9 @@ while          { LOG(ScannerLog) << "KEYWORD while";        return WHILE;       
   /************* Strings and ID's *************/
 
 \"[^"\n\r]*\"                  { LOG(ScannerLog) << "STRING     " << yytext;
-                                 //yylval.lexeme = lexemeDup();
-                                 yylval.lit = new symdb::Lit(yytext);
-                                 yylval.lit->type = new symdb::String_type();
+                                 yylval.lit = new symdb::Lit(yytext, string_type);
                                  return STRING;                             }
 {LETTER}({LETTER}|{DIGIT}|_)*  { LOG(ScannerLog) << "IDENTIFIER " << yytext;
-                                 //int sym_addr = sym_table.put( std::string(yytext) );
                                  yylval.lexeme = lexemeDup();
                                  return ID;                                 }
 

@@ -32,8 +32,8 @@ namespace symdb
 
 
 
-  Lit::Lit( std::string const& _literal ) :
-    literal(_literal), type(NULL) { }
+  Lit::Lit( std::string const& _literal, Type *_type ) :
+    literal(_literal), type(_type) { }
 
   Var::Var( std::string const& _name, Type *_type ) :
     name(_name), type(_type) { }

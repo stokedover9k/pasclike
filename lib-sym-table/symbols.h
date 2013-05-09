@@ -46,7 +46,7 @@ namespace symdb
     Type *type;
 
     virtual Sym_tag get_entry_tag() const;
-    Lit(std::string const& literal);
+    Lit(std::string const& literal, Type *type = NULL);
     virtual void send_to( std::ostream& ) const; };
   
   //======================================//
