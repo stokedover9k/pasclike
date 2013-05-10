@@ -207,7 +207,7 @@ namespace cgen
     return &*p.first; }
 
   size_t Label_gen::Label_hash::operator() (Label const& l) const {
-    return std::hash<typename Label::id_type>()(l.id); } 
+    return std::hash<Label::id_type>()(l.id); } 
 
   Label::id_type const Label_gen::INVALID_ID = 0;
 
@@ -220,7 +220,7 @@ namespace cgen
     return &*p.first; }
 
   size_t Tmp_gen::Tmp_hash::operator() (Tmp const& t) const {
-    return std::hash<typename Tmp::id_type>()(t.id); } 
+    return std::hash<Tmp::id_type>()(t.id); } 
 
   Tmp::id_type const Tmp_gen::INVALID_ID = 0;
 

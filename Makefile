@@ -49,7 +49,7 @@ clean:
 	rm -fv ${parser_OBJS} ${LEXER_EXECUTABLE} ${PARSER_EXECUTABLE} ${lang}.tab.cpp ${lang}.tab.h lex.yy.cpp lex.yy.h ${SCANNER_HEADER}
 
 zip:
-	zip parser.zip lib-sym-table/* loglib.h main-parser.cpp main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README scope_tree.h type_tests/*
+	zip parser.zip inter-code-gen.h inter-code-gen.cpp lib-sym-table/* loglib.h main-parser.cpp main-parser.h main-scanner.cpp Makefile parser-settings.cpp parser-settings.h pasclike.l pasclike.y README scope_tree.h type_tests/*
 
 define OBJECT_DEPENDS_ON_CORRESPONDING_HEADER
         $(1) : ${1:.o=.h}
