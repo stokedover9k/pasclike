@@ -144,8 +144,8 @@ namespace cgen
     case NOT:
     case COPY:
     case FUNCALL:
-    case Op::IF_TRUE_GOTO: 
-    case Op::IF_FALSE_GOTO: 
+    case IF_TRUE_GOTO: 
+    case IF_FALSE_GOTO: 
       return true;
     default:
       return false;  } }
@@ -156,6 +156,8 @@ namespace cgen
     case LIT_ACCESS:
     case VAR_ACCESS:   
     case GOTO:
+    case FUNCRETURN:
+    case PROCRETURN:
       return true;
     default:
       return false; } }
@@ -288,6 +290,8 @@ namespace cgen
     case Op::PUSH_PARAM:      return "param";
     case Op::COMPONENT_COPY:  return ".=";
     case Op::COPY_COMPONENT:  return "=.";
+    case Op::FUNCRETURN:      return "funcreturn";
+    case Op::PROCRETURN:      return "return";
     default:                  return "OP:UNK"; } }
 
   std::ostream& operator<< (std::ostream& os, Tmp const& t) {
@@ -299,6 +303,8 @@ namespace cgen
     return os; }
   
   std::ostream& operator<< (std::ostream& os, Instr const& i) {
+    if( i.op != Op::LABEL )
+      os << '\t';
     switch( i.op )
       {
       case Op::MULT:            // standard binary ops
@@ -350,11 +356,14 @@ namespace cgen
 				   << " ??? " << to_string(i.op);   break;
 
       case Op::PROCCALL:        // standard nonary ops
-      case Op::LABEL:
       case Op::GOTO:
-      case Op::PUSH_PARAM:      os << to_string(i.op) << ' '
+      case Op::PUSH_PARAM:
+      case Op::FUNCRETURN:      os << to_string(i.op) << ' '
 				   << *i.res;                       break;
-
+	
+      case Op::LABEL:           os << to_string(i.op)
+				   << *i.res << ':';                break;
+      case Op::PROCRETURN:      os << to_string(i.op);              break;
       case Op::COMPONENT_COPY:  os << *i.res
 				   << " ??? " << to_string(i.op);   break;
       case Op::COPY_COMPONENT:  os << *i.res

@@ -15,7 +15,8 @@ begin
 
 end; { divides }
 
-procedure gamble(m, n : integer); forward;
+procedure gamble(m, n : integer);
+begin end;
 		      
 begin
    correct := divides(a, b);

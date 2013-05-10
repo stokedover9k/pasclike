@@ -89,7 +89,8 @@ namespace cgen
       IF_TRUE_GOTO, IF_FALSE_GOTO,             //
       PUSH_PARAM, LABEL,                       // nonary:  x
       GOTO,                                    //
-      LIT_ACCESS, VAR_ACCESS                   //
+      LIT_ACCESS, VAR_ACCESS,                  //
+      FUNCRETURN, PROCRETURN                   //
     }; 
     
     bool static is_binary( Opcode );

@@ -361,6 +361,7 @@ int yyerror( const char *p ) { ERRLOG << p; }
 
 %type <addr> variable componentSelection
 %type <addr> ifThenHeader ifThenElseHeader
+%type <addr> funcDecl funcSignature procSignature
 
 %type <expr> factor factorList 
 %type <expr> term termList 
@@ -371,8 +372,8 @@ int yyerror( const char *p ) { ERRLOG << p; }
 
 %type <type> type resultType 
 
-%type <func> funcDecl funcSignature functionReference
-%type <proc> procDecl procSignature
+%type <func> functionReference
+%type <proc> procDecl
 %type <lit> constant
 %type <op> relOp addOp mulOp sign
 
@@ -440,31 +441,40 @@ subprogDeclList
 procDecl 
    : procSignature block       { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) block"; 
                                  symdb::Sym_scope *scope = symtable.pop_scope();
-				 $$ = $1;
+				 $$ = $1->get_proc();
+				 codeout << cgen::Instr( cgen::Op::PROCRETURN, NULL, NULL, $1 );
                                }
    | procSignature FORWARD     { LOG(ParserLog) << "   procDecl := Procedure id ( formalParams ) forward";
                                  symdb::Sym_scope *scope = symtable.pop_scope();
-				 $$ = $1;
+				 $$ = $1->get_proc();
                                }
    ;
 procSignature
    : PROCEDURE                        { /* success marker*/ } 
-     ID                               { $<proc>1 = new symdb::Proc( $3 );  //set $1 to hold the procedure symbol
-                                        symtable.put( $<proc>1 );   // put procedure into the scope where it's defined
+     ID                               { symdb::Proc *proc = new symdb::Proc( $3 );
+                                        symtable.put( proc );   // put procedure into the scope where it's defined
 					$<success>2 = symtable.put_success();
-                                        $<proc>1->scope = symtable.push_scope( new symdb::Sym_scope() );
-					symtable.put( $<proc>1 );   // put procedure into its body's scope (for recursion)
-					// TODO: during table output, DO NOT push procedure's scope if currently in it
+                                        proc->scope = symtable.push_scope( new symdb::Sym_scope() );
+					symtable.put( proc );   // put procedure into its body's scope (for recursion)
+
+					cgen::Addr *proc_addr;
 					if( ! $<success>2 ) {
-					  ERRLOG << "could not add procedure: " << $3; }
+					  ERRLOG << "could not add procedure: " << $3; 
+					  static cgen::Addr *unk_proc = create_addr( new symdb::Proc( "___UNKNOWN_PROCEDURE___" ) ); 
+					  proc_addr = unk_proc; }
+					else
+					  proc_addr = create_addr( proc );
+					$<addr>1 = proc_addr;
+					codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, proc_addr );
                                       }
-     '(' formalParamList ')' ';'      { $<proc>1->formals = std::move(*$6); 
-                                        $$ = $<success>2 ? $<proc>1 : NULL; }
+     '(' formalParamList ')' ';'      { $<addr>1->get_proc()->formals = std::move(*$6); 
+                                        $$ = $<addr>1; }
    ;
 funcDecl
    : funcSignature block      { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; block";
                                 symdb::Sym_scope *scope = symtable.pop_scope();
 				$$ = $1;
+				codeout << cgen::Instr( cgen::Op::FUNCRETURN, NULL, NULL, $1 );
                               }
    | funcSignature FORWARD    { LOG(ParserLog) << "   procDecl := Function id ( formalParams ) : resultType ; forward";
                                 symdb::Sym_scope *scope = symtable.pop_scope();
@@ -473,21 +483,29 @@ funcDecl
    ;
 funcSignature 
    : FUNCTION                         { /* success marker*/ }
-     ID                               { $<func>1 = new symdb::Func( $3 );  //set $1 to hold the function symbol
-                                        symtable.put( $<func>1 );  // put the function into the scope where it's defined
+     ID                               { symdb::Func *func = new symdb::Func( $3 );
+                                        symtable.put( func );  // put the function into the scope where it's defined
 					$<success>2 = symtable.put_success();
-                                        $<func>1->scope = symtable.push_scope( new symdb::Sym_scope() );
-					symtable.put( $<func>1 );  // put the function into the its body's scope
-					// TODO: during table output, DO NOT push function's scope if currently in it
+					func->scope = symtable.push_scope( new symdb::Sym_scope() );
+					symtable.put( func );  // put the function into its body's scope
+
+					cgen::Addr *func_addr;
 					if( ! $<success>2 ) {
-					  ERRLOG << "could not add function to symbol table: " << $3; }
+					  ERRLOG << "could not add function to symbol table: " << $3; 
+					  static cgen::Addr *unk_function = create_addr( new symdb::Func( "___UNKNOWN_FUNCTION___" ) ); 
+					  func_addr = unk_function; }
+					else {
+					  func_addr = create_addr( func ); }
+
+					$<addr>1 = func_addr; 
+					codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, func_addr );
                                       }
-     '(' formalParamList ')'          { $<func>1->formals = std::move(*$6); }
+     '(' formalParamList ')'          { $<addr>1->get_func()->formals = std::move(*$6); }
      ':' resultType ';'               { if( ! $10->is_valid() ) {
                                           $<success>2 = false;
 					  ERRLOG << "function invalid because of invalid return type: " << $3; }
-                                        $<func>1->return_type = $10;
-                                        $$ = $<success>2 ? $<func>1 : NULL; }
+                                        $<addr>1->get_func()->return_type = $10;
+                                        $$ = $<addr>1; }
    ;
 
 
