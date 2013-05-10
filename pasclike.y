@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <list>
 
@@ -30,7 +31,7 @@ TLogLevel ParserLog = PARSER_LOG_LVL;
  symdb::Sym_table symtable;
  cgen::Tmp_gen tmp_gen;
  cgen::Label_gen label_gen;
- std::ostream& codeout(std::cout);
+ std::ofstream codeout("a.txt");
 //---------------------------------
 
 int yyerror( const char *p ) { ERRLOG << p; }
@@ -383,9 +384,13 @@ program
    : PROGRAM ID ';' 
      opt_TypeDefs
      opt_VarDecls
-     opt_SubprogDecls
+     opt_SubprogDecls   {
+			  $<addr>$ = create_addr( label_gen.gen_label( $2 ) );
+                          codeout << cgen::Instr( cgen::Op::LABEL, NULL, NULL, $<addr>$ );
+                        }
      compoundStmt '.'
                         { LOG(ParserLog) << "   Program := program id ; [typeDefs] [varDecls] [subprogDecls] compoundStmt .";
+			  codeout << cgen::Instr( cgen::Op::FUNCRETURN, NULL, NULL, $<addr>7 );
 			}
         ;
     //============ TYPE DEFINITIONS =====================================

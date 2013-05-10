@@ -70,10 +70,7 @@ int main( int argc, char* argv[] )
   // Print Symbol Table
   std::filebuf fb;
   fb.open("symtable.out", std::ios::out);
-  //---- uncomment one ---------------
   std::ostream symOut(&fb);
-  //----------------------------------
-  std::cout << "PRINTING TABLE..." << std::endl;
   symOut << symtable << std::flush;
   return 0;
 }
